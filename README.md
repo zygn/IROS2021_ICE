@@ -5,16 +5,8 @@
 ### Usage (pygame)
 ---
 
-1. Clone this repository
 
-    ```
-    git clone https://github.com/nurdy-kim/local_planning_gnu
-    cd local_planning_gnu
-    git checkout pygame
-    ```
-
-
-2. Requirements
+1. Requirements
 
     1. Framework
     ```
@@ -30,7 +22,7 @@
     to install f1tenth_gym, follow the [Quickstart](https://github.com/f1tenth/f1tenth_gym) at f1tenth/f1tenth_gym
 
 
-3. Run
+2. Run
     1. Quickstart
     ```
     python3 sim.py
@@ -51,7 +43,7 @@
     ```
 
 
-4. Parameters
+3. Parameters
  
    If you want to change the parameters, you need modify `params.yaml`
 
@@ -68,4 +60,3 @@
     - `pi` - π
     - `g`- Gravitational acceleration 
     
-5. 
