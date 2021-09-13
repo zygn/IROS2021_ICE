@@ -5,10 +5,11 @@
 
 ## 사용법 
 
-## 공통
+### 공통
 
 ```
 git clone https://github.com/zygn/IROS2021_ICE && cd IROS2021_ICE
+pip3 install --user -e gym
 ```
 
 ### F1TENTH Python Gym
