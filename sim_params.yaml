@@ -1,0 +1,38 @@
+# Environment Constants
+
+sx: 0
+sy: 0
+stheta: 0
+
+map_path: "map/vegas_test"
+map_ext: '.png'
+
+# Planner Constants
+wpt_path: 'map/wp_vegas_test.csv'
+wpt_delimeter: ','
+
+max_speed: 8.0
+min_speed: 5.0
+
+robot_length: 0.3302
+robot_scale: 0.2032
+mass: 3.47
+
+mu: 0.523
+pi: 3.141592
+g: 9.81
+
+fgm:
+  look: 2.0
+  threshold: 3.0
+  gap_size: 1
+  filter_scale: 1.1
+  gap_theta_gain: 20.0
+  ref_theta_gain: 1.5
+
+odg:
+  threshold: 2.0
+  filter_scale: 1.1
+
+
+
