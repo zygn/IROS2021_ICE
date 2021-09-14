@@ -6,11 +6,11 @@ import csv
 from matplotlib import pyplot as plt
 from argparse import Namespace
 
-from planner.fgm_stech import FGM as FGM_STECH
-from planner.fgm_gnu import FGM as FGM_GNU
+from planner.fgm_stech import FGM
+from planner.fgm_gnu import FGM_GNU
 from planner.odg_pf import ODGPF
 from planner.odg_gnu import ODGGNU
-from planner.fgm_conv import GapFollower
+from planner.fgm_conv import FGM_CONV
 
 if __name__ == '__main__':
 
@@ -32,10 +32,10 @@ if __name__ == '__main__':
         env.render()
 
     # planner = FGM_GNU(conf)
-    # planner = FGM_STECH(conf)
+    # planner = FGM(conf)
     # planner = ODGPF(conf)
     # planner = ODGGNU(conf)
-    planner = GapFollower(conf)
+    planner = FGM_CONV(conf)
 
     laptime = 0.0
     start = time.time()
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     avg_speed = np.mean(data_list)
 
     if conf.debug['logging']:
-        wdr.writerow(["Solo", laptime, done, collision, done_i, max_speed, avg_speed])
+        wdr.writerow([planner.__class__.__name__, laptime, done, collision, done_i, max_speed, avg_speed])
 
     print(f"\tEnvironment Max Speed: {max_speed}")
     print(f"\tEnvironment Average Speed: {avg_speed}")

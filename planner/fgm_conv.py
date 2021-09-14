@@ -1,6 +1,6 @@
 import numpy as np
 
-class GapFollower:
+class FGM_CONV:
     BUBBLE_RADIUS = 160
     PREPROCESS_CONV_SIZE = 100  # PREPROCESS_consecutive_SIZE
     BEST_POINT_CONV_SIZE = 80
@@ -18,6 +18,7 @@ class GapFollower:
         self.GRAVITY_ACC = params.g
         self.MU = params.mu
         self.ROBOT_LENGTH = params.robot_length
+
 
     def preprocess_lidar(self, ranges):
 

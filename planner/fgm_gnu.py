@@ -2,7 +2,7 @@ import numpy as np
 import time
 
 
-class FGM:
+class FGM_GNU:
     def __init__(self, params):
 
         self.RACECAR_LENGTH = params.robot_length
@@ -119,7 +119,7 @@ class FGM:
             wps_point = [i[0], i[1], 0]
             temp_waypoint.append(wps_point)
             self.wp_num += 1
-        print("wp_num", self.wp_num)
+
         return temp_waypoint
 
     def find_desired_wp(self):

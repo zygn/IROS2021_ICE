@@ -21,9 +21,9 @@ speed_controller: 0
 
 # Debugging Settings
 debug:
-  gui_render: true        # 화면 출력 (true|false)
-  plotting: true          # 속도 그래프 출력 (true|false)
-  logging: true           # 결과 로그 저장 여부 (true|false)
+  gui_render: false        # 화면 출력 (true|false)
+  plotting: false          # 속도 그래프 출력 (true|false)
+  logging: false           # 결과 로그 저장 여부 (true|false)
   collision_reset: true   # 충돌시 재시작 여부 (true|false)
   collision_interval: 2   # 충돌시 최대 재시작 횟수 설정 (int)
 
