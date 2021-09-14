@@ -1,9 +1,8 @@
 import numpy as np
-
-
+from .speed_controller import SpeedController
 class ODGGNU:
     def __init__(self, params):
-
+        self.params = params
         self.RACECAR_LENGTH = params.robot_length
         self.ROBOT_LENGTH = params.robot_length
         self.SPEED_MAX = params.max_speed
@@ -62,6 +61,8 @@ class ODGGNU:
         self.mode = 0
         self.idx_temp = 0
         self.lap = 0
+
+        self.controller = SpeedController(self.params, self.scan_filtered, self.current_speed, self.wp_index_current)  # determin_speed
 
     def getDistance(self, a, b):
         dx = a[0] - b[0]
@@ -252,32 +253,6 @@ class ODGGNU:
 
         return min_f_idx
 
-    def speed_controller(self):
-        current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
-        if np.isnan(current_distance):
-            print("SCAN ERR")
-            current_distance = 1.0
-
-        if self.current_speed > 10:
-            current_distance -= self.current_speed * 0.7
-
-        maximum_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - 2
-
-        if maximum_speed >= self.SPEED_MAX:
-            maximum_speed = self.SPEED_MAX
-
-        if self.current_speed <= maximum_speed:
-            # ACC
-            if self.current_speed >= 10:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed))
-            else:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * self.ROBOT_LENGTH)
-        else:
-            # set_speed = 0
-            set_speed = self.current_speed - np.fabs((maximum_speed - self.current_speed) * 0.2)
-
-        return set_speed
-
     def main_drive(self, goal):
 
         self.steering_angle = (-self.front_idx + goal) * self.interval
@@ -294,7 +269,7 @@ class ODGGNU:
         steer = np.arctan(self.ROBOT_LENGTH / path_radius)
         # print("input",controlled_angle,"output",steering_angle)
 
-        speed = self.speed_controller()  # determin_speed
+        speed = self.controller.routine(self.scan_filtered, self.current_speed, steer, self.wp_index_current)
 
         if np.fabs(steer) > 0.5:
             # print("in")

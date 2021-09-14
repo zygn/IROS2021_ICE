@@ -11,6 +11,13 @@ class GapFollower:
         self.radians_per_elem = None
         self.STRAIGHTS_SPEED = params.max_speed
         self.CORNERS_SPEED = params.min_speed
+        
+        self.current_speed = 2.0
+        self.SPEED_MAX = params.max_speed
+        self.SPEED_MIN = params.min_speed
+        self.GRAVITY_ACC = params.g
+        self.MU = params.mu
+        self.ROBOT_LENGTH = params.robot_length
 
     def preprocess_lidar(self, ranges):
 
@@ -45,11 +52,40 @@ class GapFollower:
         steering_angle = lidar_angle / 2
 
         return steering_angle
+    
+    def speed_controller(self):
+        current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
+        if np.isnan(current_distance):
+            print("SCAN ERR")
+            current_distance = 1.0
+
+        if self.current_speed > 10:
+            current_distance -= self.current_speed * 0.7
+
+        maximum_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - 2
+
+        if maximum_speed >= self.SPEED_MAX:
+            maximum_speed = self.SPEED_MAX
+
+        if self.current_speed <= maximum_speed:
+            # ACC
+            if self.current_speed >= 9:
+                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed))
+            else:
+                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * self.ROBOT_LENGTH)
+        else:
+            # set_speed = 0
+            set_speed = self.current_speed - np.fabs((maximum_speed - self.current_speed) * 0.2)
+
+        return set_speed
 
     def driving(self, scan_data, odom_data):
         ranges = scan_data
         proc_ranges = self.preprocess_lidar(ranges)
         closest = proc_ranges.argmin()
+        
+        self.current_speed = odom_data['linear_vel']
+        self.scan_filtered = scan_data
 
         min_index = closest - self.BUBBLE_RADIUS
         max_index = closest + self.BUBBLE_RADIUS
@@ -62,10 +98,11 @@ class GapFollower:
         best = self.find_best_point(gap_start, gap_end, proc_ranges)
 
         steering_angle = self.get_angle(best, len(proc_ranges))
-        if abs(steering_angle) > self.STRAIGHTS_STEERING_ANGLE:
-            speed = self.CORNERS_SPEED
-        else:
-            speed = self.STRAIGHTS_SPEED
-        # print('Steering angle in degrees: {}'.format((steering_angle / (np.pi / 2)) * 90))
-        # print(f"Speed: {speed}")
+        speed = self.speed_controller()
+        # if abs(steering_angle) > self.STRAIGHTS_STEERING_ANGLE:
+        #     speed = self.CORNERS_SPEED
+        # else:
+        #     speed = self.STRAIGHTS_SPEED
+        # # print('Steering angle in degrees: {}'.format((steering_angle / (np.pi / 2)) * 90))
+        # # print(f"Speed: {speed}")
         return speed, steering_angle
