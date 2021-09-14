@@ -1,8 +1,9 @@
 import numpy as np
+from .speed_controller import SpeedController
 
 class FGM:
     def __init__(self, params):
-
+        self.params = params
         self.RACECAR_LENGTH = params.robot_length
         self.ROBOT_LENGTH = params.robot_length
         self.SPEED_MAX = params.max_speed
@@ -54,8 +55,10 @@ class FGM:
         self.gap_cont = 0
         self.lap = 0
 
+
         self.current_speed = 1.0
         self.dmin_past = 0
+        self.controller = SpeedController(self.params)
 
     
     def find_nearest_obs(self,obs):
@@ -349,11 +352,13 @@ class FGM:
         #
         steering_angle = np.arctan(self.RACECAR_LENGTH/path_radius)
 
-        if (np.fabs(steering_angle) > self.PI/8):
-            speed = self.SPEED_MIN
-        else:
-            speed = (float)(-(3/self.PI)*(self.SPEED_MAX-self.SPEED_MIN)*np.fabs(self.max_angle)+self.SPEED_MAX)
-            speed = np.fabs(speed)
+        
+        speed = self.controller.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current)
+        # if (np.fabs(steering_angle) > self.PI/8):
+        #     speed = self.SPEED_MIN
+        # else:
+        #     speed = (float)(-(3/self.PI)*(self.SPEED_MAX-self.SPEED_MIN)*np.fabs(self.max_angle)+self.SPEED_MAX)
+        #     speed = np.fabs(speed)
 
         self.dmin_past = dmin
 
