@@ -11,6 +11,12 @@ map_ext: '.png'
 wpt_path: 'map/wp_vegas_test.csv'
 wpt_delimeter: ','
 
+# Speed Controller
+# 0: Constant
+# 1: Breaking Distance Based
+# 2: Angle Based
+speed_controller: 0
+
 max_speed: 8.0
 min_speed: 5.0
 
