@@ -1,21 +1,36 @@
 # Environment Constants
-
-sx: 0.8007017
-sy: -0.2753365
-stheta: 4.1421595
-
 map_path: "map/SOCHI_OBS"
 map_ext: '.png'
 
-# Planner Constants
-wpt_path: 'map/wp_vegas_test.csv'
-wpt_delimeter: ','
+p1:               # 1P 시작 상수 (solo, duo_1p)
+  sx: 0.8007017
+  sy: -0.2753365
+  stheta: 4.1421595
+p2:               # 2P 시작 상수 (duo_2p)
+  sx: 0.8162458
+  sy: 1.1614572
+  stheta: 4.1446321
+
 
 # Speed Controller
 # 0: Constant
 # 1: Breaking Distance Based
 # 2: Angle Based
 speed_controller: 0
+
+
+# Debugging Settings
+debug:
+  gui_render: true        # 화면 출력 (true|false)
+  plotting: true          # 속도 그래프 출력 (true|false)
+  logging: true           # 결과 로그 저장 여부 (true|false)
+  collision_reset: true   # 충돌시 재시작 여부 (true|false)
+  collision_interval: 2   # 충돌시 최대 재시작 횟수 설정 (int)
+
+
+# Planner Constants
+wpt_path: 'map/wp_vegas_test.csv'
+wpt_delimeter: ','
 
 max_speed: 8.0
 min_speed: 5.0
