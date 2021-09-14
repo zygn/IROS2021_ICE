@@ -2,6 +2,7 @@ import gym
 import time
 import yaml
 import numpy as np
+from matplotlib import pyplot as plt
 from argparse import Namespace
 
 from planner.fgm_stech import FGM as FGM_STECH
@@ -31,6 +32,11 @@ if __name__ == '__main__':
     laptime = 0.0
     start = time.time()
     done_i = 1
+
+    plotting = True
+    plot_interval = 0
+    plot_list = []
+
     while not done:
         # print(f"speed: {obs['linear_vels_x'][0]}", end='\r')
 
@@ -47,9 +53,24 @@ if __name__ == '__main__':
         laptime += step_reward
         env.render(mode='human')
 
+        env_speed = obs['linear_vels_x'][0]
+        pln_speed = speed
+        plot_interval += 1
+        plot_list.append([env_speed, pln_speed])
+
+        if plotting and plot_interval % 10 == 0:
+            plt.title(f"Env Speed: {env_speed}")
+            plt.grid()
+            plt.plot(plot_list)
+            plt.legend(['Env Speed', 'Planner Speed'])
+            plt.pause(0.005)
+            plt.clf()
+
+        if len(plot_list) >= 1000:
+            del(plot_list[0])
+
         if done and not info['checkpoint_done'][0]:
             print(f"It seems collision... {done_i} times, Sim elapsed time: {laptime} \nReset Environment.")
-
             obs, step_reward, done, info = env.reset(np.array([[conf.sx, conf.sy, conf.stheta]]))
             done_i += 1
             laptime = 0.0

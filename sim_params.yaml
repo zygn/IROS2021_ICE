@@ -4,7 +4,7 @@ sx: 0
 sy: 0
 stheta: 0
 
-map_path: "map/vegas_test"
+map_path: "map/SOCHI_OBS"
 map_ext: '.png'
 
 # Planner Constants
