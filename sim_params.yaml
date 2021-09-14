@@ -1,8 +1,8 @@
 # Environment Constants
 
-sx: 0
-sy: 0
-stheta: 0
+sx: 0.8007017
+sy: -0.2753365
+stheta: 4.1421595
 
 map_path: "map/SOCHI_OBS"
 map_ext: '.png'
