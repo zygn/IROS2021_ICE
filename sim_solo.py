@@ -60,7 +60,7 @@ if __name__ == '__main__':
         laptime += step_reward
 
         if conf.debug['gui_render']:
-            env.render(mode='human')
+            env.render(mode='human_fast')
 
         env_speed = obs['linear_vels_x'][0]
         pln_speed = speed

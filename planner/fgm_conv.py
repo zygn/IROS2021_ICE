@@ -1,4 +1,5 @@
 import numpy as np
+from .speed_controller import SpeedController as SC
 
 class GapFollower:
     BUBBLE_RADIUS = 160
@@ -19,12 +20,14 @@ class GapFollower:
         self.MU = params.mu
         self.ROBOT_LENGTH = params.robot_length
 
+        self.speed_controller = SC(params)
+
     def preprocess_lidar(self, ranges):
 
         self.radians_per_elem = (2 * np.pi) / len(ranges)
-        proc_ranges = np.array(ranges[180:-180])  # 180도 봄
+        proc_ranges = np.array(ranges[180:-180])  # scan range 180 deg
         proc_ranges = np.convolve(proc_ranges, np.ones(self.PREPROCESS_CONV_SIZE), 'same') / self.PREPROCESS_CONV_SIZE
-        proc_ranges = np.clip(proc_ranges, 0, self.MAX_LIDAR_DIST)  # 오류 잡이용
+        proc_ranges = np.clip(proc_ranges, 0, self.MAX_LIDAR_DIST)  # for checking error.
         return proc_ranges
 
     def find_max_gap(self, free_space_ranges):
@@ -52,32 +55,6 @@ class GapFollower:
         steering_angle = lidar_angle / 2
 
         return steering_angle
-    
-    def speed_controller(self):
-        current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
-        if np.isnan(current_distance):
-            print("SCAN ERR")
-            current_distance = 1.0
-
-        if self.current_speed > 10:
-            current_distance -= self.current_speed * 0.7
-
-        maximum_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - 2
-
-        if maximum_speed >= self.SPEED_MAX:
-            maximum_speed = self.SPEED_MAX
-
-        if self.current_speed <= maximum_speed:
-            # ACC
-            if self.current_speed >= 9:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed))
-            else:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * self.ROBOT_LENGTH)
-        else:
-            # set_speed = 0
-            set_speed = self.current_speed - np.fabs((maximum_speed - self.current_speed) * 0.2)
-
-        return set_speed
 
     def driving(self, scan_data, odom_data):
         ranges = scan_data
@@ -98,11 +75,6 @@ class GapFollower:
         best = self.find_best_point(gap_start, gap_end, proc_ranges)
 
         steering_angle = self.get_angle(best, len(proc_ranges))
-        speed = self.speed_controller()
-        # if abs(steering_angle) > self.STRAIGHTS_STEERING_ANGLE:
-        #     speed = self.CORNERS_SPEED
-        # else:
-        #     speed = self.STRAIGHTS_SPEED
-        # # print('Steering angle in degrees: {}'.format((steering_angle / (np.pi / 2)) * 90))
-        # # print(f"Speed: {speed}")
+        speed = self.speed_controller.routine(self.scan_filtered, self.current_speed, steering_angle, 0)
+
         return speed, steering_angle
