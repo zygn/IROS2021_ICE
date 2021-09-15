@@ -1,3 +1,5 @@
+from .speed_controller import SpeedController as SC
+
 import numpy as np
 import time
 
@@ -61,6 +63,8 @@ class FGM_GNU:
 
         self.closest_wp_dist = 0
         self.closest_obs_dist = 0
+
+        self.speed_controller = SC(params)
 
     def find_nearest_obs(self, obs):
         min_di = 0
@@ -306,32 +310,6 @@ class FGM_GNU:
             # 가장 작은 distance를 갖는 gap만 return
             return self.gaps[gap_idx]
 
-    def speed_controller(self):
-        current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
-        if np.isnan(current_distance):
-            print("SCAN ERR")
-            current_distance = 1.0
-
-        if self.current_speed > 10:
-            current_distance -= self.current_speed * 0.7
-
-        maximum_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * current_distance) - 2
-
-        if maximum_speed >= self.SPEED_MAX:
-            maximum_speed = self.SPEED_MAX
-
-        if self.current_speed <= maximum_speed:
-            # ACC
-            if self.current_speed >= 10:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * 0.8)
-            else:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * self.ROBOT_LENGTH)
-        else:
-            # set_speed = 0
-            set_speed = self.current_speed - np.fabs((maximum_speed - self.current_speed) * 0.2)
-        # print("speed :", set_speed, "current", maximum_speed)
-        return set_speed
-
     def define_obstacles(self, scan):
         obstacles = []
 
@@ -432,7 +410,7 @@ class FGM_GNU:
         steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
 
         steer = steering_angle
-        speed = self.speed_controller()
+        speed = self.speed_controller.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current)
         self.dmin_past = dmin
 
         return steer, speed

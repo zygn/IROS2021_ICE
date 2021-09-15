@@ -1,5 +1,6 @@
 import numpy as np
-from .speed_controller import SpeedController
+from .speed_controller import SpeedController as SC
+
 class ODGGNU:
     def __init__(self, params):
         self.params = params
@@ -62,7 +63,7 @@ class ODGGNU:
         self.idx_temp = 0
         self.lap = 0
 
-        self.controller = SpeedController(self.params, self.scan_filtered, self.current_speed, self.wp_index_current)  # determin_speed
+        self.speed_controller = SC(self.params)  # determin_speed
 
     def getDistance(self, a, b):
         dx = a[0] - b[0]
@@ -269,7 +270,7 @@ class ODGGNU:
         steer = np.arctan(self.ROBOT_LENGTH / path_radius)
         # print("input",controlled_angle,"output",steering_angle)
 
-        speed = self.controller.routine(self.scan_filtered, self.current_speed, steer, self.wp_index_current)
+        speed = self.speed_controller.routine(self.scan_filtered, self.current_speed, steer, self.wp_index_current)
 
         if np.fabs(steer) > 0.5:
             # print("in")
