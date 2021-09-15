@@ -1,7 +1,7 @@
 import numpy as np
 from .speed_controller import SpeedController as SC
 
-class GapFollower:
+class FGM_CONV:
     BUBBLE_RADIUS = 160
     PREPROCESS_CONV_SIZE = 100  # PREPROCESS_consecutive_SIZE
     BEST_POINT_CONV_SIZE = 80
@@ -21,6 +21,7 @@ class GapFollower:
         self.ROBOT_LENGTH = params.robot_length
 
         self.speed_controller = SC(params)
+
 
     def preprocess_lidar(self, ranges):
 

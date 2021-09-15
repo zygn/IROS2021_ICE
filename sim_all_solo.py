@@ -7,11 +7,11 @@ from matplotlib import pyplot as plt
 from argparse import Namespace
 
 # Import planner classes
-from planner.fgm_stech import FGM as FGM_STECH
-from planner.fgm_gnu import FGM as FGM_GNU
+from planner.fgm_stech import FGM
+from planner.fgm_gnu import FGM_GNU
 from planner.odg_pf import ODGPF
 from planner.odg_gnu import ODGGNU
-from planner.fgm_conv import GapFollower
+from planner.fgm_conv import FGM_CONV
 
 if __name__ == '__main__':
 
@@ -32,10 +32,7 @@ if __name__ == '__main__':
     if conf.debug['gui_render']:
         env.render()
 
-    pln_label = ["FGM_STECH", "FGM_GNU", "ODG-PF", "FGM-CONV"]
-    for i, pln in enumerate([FGM_STECH, FGM_GNU, ODGPF, GapFollower]):
-
-        print(f"Algorithm: {pln_label[i]}")
+    for pln in [FGM, FGM_GNU, FGM_CONV, ODGPF, ODGGNU]:
         planner = pln(conf)
         laptime = 0.0
         start = time.time()
@@ -45,6 +42,7 @@ if __name__ == '__main__':
         plot_interval = 0
         plot_list = []
         data_list = []
+        print(f"Algorithm: {planner.__class__.__name__}")
 
         while not done:
             scan_data = obs['scans'][0]
@@ -109,7 +107,7 @@ if __name__ == '__main__':
         avg_speed = np.mean(data_list)
 
         if conf.debug['logging']:
-            wdr.writerow([pln_label[i], laptime, done, collision, done_i, max_speed, avg_speed])
+            wdr.writerow([planner.__class__.__name__, laptime, done, collision, done_i, max_speed, avg_speed])
 
         print(f"\tEnvironment Max Speed: {max_speed}")
         print(f"\tEnvironment Average Speed: {avg_speed}")
