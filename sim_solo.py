@@ -6,7 +6,7 @@ import csv
 from matplotlib import pyplot as plt
 from argparse import Namespace
 
-from planner.fgm_stech import FGM
+from planner.fgm_stech import FGM as GRP
 from planner.fgm_gnu import FGM_GNU
 from planner.odg_pf import ODGPF
 from planner.odg_gnu import ODGGNU
@@ -32,7 +32,7 @@ if __name__ == '__main__':
         env.render()
 
     # planner = FGM_GNU(conf)
-    # planner = FGM(conf)
+    # planner = GRP(conf)
     # planner = ODGPF(conf)
     # planner = ODGGNU(conf)
     planner = FGM_CONV(conf)
