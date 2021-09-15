@@ -109,7 +109,7 @@ class SpeedController:
         dx = current_point[0] - target_point[0]
         dy = current_point[1] - target_point[1]
 
-        road_direction = np.fabs(np.arctan2(dy, dx))
+        road_direction = np.arctan2(dy, dx)
 
         return road_direction
 
