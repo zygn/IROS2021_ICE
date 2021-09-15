@@ -1,0 +1,263 @@
+import numpy as np
+import time
+
+
+class PP:
+    def __init__(self, params):
+
+        self.RACECAR_LENGTH = params.robot_length
+        self.ROBOT_LENGTH = params.robot_length
+        self.SPEED_MAX = params.max_speed
+        self.SPEED_MIN = params.min_speed
+
+        self.MU = params.mu
+        self.GRAVITY_ACC = params.g
+        self.PI = params.pi
+        self.ROBOT_SCALE = params.robot_scale
+
+        self.LOOK = params.fgm['look']
+        self.THRESHOLD = params.fgm['threshold']
+        self.GAP_SIZE = params.fgm['gap_size']
+        self.FILTER_SCALE = params.fgm['filter_scale']
+        self.GAP_THETA_GAIN = params.fgm['gap_theta_gain']
+        self.REF_THETA_GAIN = params.fgm['ref_theta_gain']
+
+        self.BEST_POINT_CONV_SIZE = 80
+
+        self.waypoint_real_path = params.wpt_path
+        self.waypoint_delimeter = params.wpt_delimeter
+
+        self.scan_range = 0
+        self.desired_gap = 0
+        self.speed_gain = 0
+        self.steering_gain = 0
+        self.gain_cont = 0
+        self.speed_cont = 0
+        self.desired_wp_rt = [0, 0]
+
+        self.speed_up = 0
+
+        self.wp_num = 1
+        self.waypoints = self.get_waypoint()
+        self.wp_index_current = 0
+        self.current_position = [0] * 3
+        self.nearest_distance = 0
+
+        self.interval = 0.00435  # 1도 = 0.0175라디안
+
+        self.front_idx = 0
+        self.theta_for = self.PI / 3
+        self.gap_cont = 0
+
+        self.current_speed = 5.0
+        self.dmin_past = 0
+        self.lap = 0
+        self.CURRENT_WP_CHECK_OFFSET = 2
+
+        self.closest_wp_dist = 0
+        self.closest_obs_dist = 0
+        self.desired_point = []
+        self.lookahead_desired = 0
+        self.actual_lookahead = 0
+        self.steering_direction = 0
+        self.goal_path_radius = 0
+        self.goal_path_theta = 0
+
+    def get_waypoint(self):
+        file_wps = np.genfromtxt(self.waypoint_real_path, delimiter=self.waypoint_delimeter, dtype='float')
+        temp_waypoint = []
+        for i in file_wps:
+            wps_point = [i[0], i[1], 0]
+            temp_waypoint.append(wps_point)
+            self.wp_num += 1
+
+        return temp_waypoint
+
+    def speed_controller(self):
+        current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
+        if np.isnan(current_distance):
+            print("SCAN ERR")
+            current_distance = 1.0
+
+        if self.current_speed > 10:
+            current_distance -= self.current_speed * 0.7
+
+        maximum_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * current_distance) - 2
+
+        if maximum_speed >= self.SPEED_MAX:
+            maximum_speed = self.SPEED_MAX
+
+        if self.current_speed <= maximum_speed:
+            # ACC
+            if self.current_speed >= 10:
+                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * 0.8)
+            else:
+                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * self.ROBOT_LENGTH)
+        else:
+            # set_speed = 0
+            set_speed = self.current_speed - np.fabs((maximum_speed - self.current_speed) * 0.2)
+        # print("speed :", set_speed, "current", maximum_speed)
+        return set_speed
+
+    def find_nearest_wp(self):
+        wp_index_temp = self.wp_index_current
+        self.nearest_distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+
+        while True:
+            wp_index_temp += 1
+            if wp_index_temp >= len(self.waypoints) - 1:
+                wp_index_temp = 0
+
+            temp_distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+
+            if temp_distance < self.nearest_distance:
+                self.nearest_distance = temp_distance
+                self.wp_index_current = wp_index_temp
+            elif temp_distance > (self.nearest_distance + self.CURRENT_WP_CHECK_OFFSET) or (
+                    wp_index_temp == self.wp_index_current):
+                break
+
+        transformed_nearest_point = self.transformPoint(self.current_position, self.waypoints[self.wp_index_current])
+        if (transformed_nearest_point[0] < 0): self.nearest_distance *= -1
+
+    def getDistance(self, a, b):
+        dx = a[0] - b[0]
+        dy = a[1] - b[1]
+
+        return np.sqrt(dx ** 2 + dy ** 2)
+
+    def transformPoint(self, origin, target):
+        theta = self.PI / 2 - origin[2]
+
+        dx = target[0] - origin[0]
+        dy = target[1] - origin[1]
+        dtheta = target[2] + theta
+
+        tf_point_x = dx * np.cos(theta) - dy * np.sin(theta)
+        tf_point_y = dx * np.sin(theta) + dy * np.cos(theta)
+        tf_point_theta = dtheta
+        tf_point = [tf_point_x, tf_point_y, tf_point_theta]
+
+        return tf_point
+
+    def get_lookahead_desired(self):
+        _vel = self.current_speed
+        # self.lookahead_desired = 0.5 + (0.3 * _vel)
+        self.lookahead_desired = 1.0 + (0.3 * _vel)
+
+    def find_desired_wp(self):
+        wp_index_temp = self.wp_index_current
+        while(1):
+            if(wp_index_temp >= len(self.waypoints)-1): wp_index_temp = 0
+            distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+            if distance >= self.lookahead_desired:
+                if wp_index_temp-2 >=0 and wp_index_temp+2 < len(self.waypoints)-1:
+                    self.waypoints[wp_index_temp][2] = np.arctan((self.waypoints[wp_index_temp+2][1]-self.waypoints[wp_index_temp-2][1])/self.waypoints[wp_index_temp+2][0]-self.waypoints[wp_index_temp-2][0])
+                self.desired_point = self.waypoints[wp_index_temp]
+                self.actual_lookahead = distance
+                break
+            wp_index_temp += 1
+
+    def find_path(self):
+        #right cornering
+        if self.desired_wp_rt[0] > 0:
+            self.goal_path_radius = pow(self.actual_lookahead, 2)/(2*self.desired_wp_rt[0])
+            self.goal_path_theta = np.arcsin(self.desired_wp_rt[1]/self.goal_path_radius)
+            self.steering_direction = -1
+
+        #left cornering
+        else:
+            self.goal_path_radius = pow(self.actual_lookahead, 2)/((-2)*self.desired_wp_rt[0])
+            self.goal_path_theta = np.arcsin(self.desired_wp_rt[1]/self.goal_path_radius)
+            self.steering_direction = 1
+
+    def subCallback_scan(self, scan_data):
+
+        self.scan_range = len(scan_data)
+
+        self.front_idx = (int(self.scan_range / 2))
+
+        self.scan_origin = [0] * self.scan_range
+        self.scan_filtered = [0] * self.scan_range
+
+        for i in range(self.scan_range):
+            self.scan_origin[i] = scan_data[i]
+            self.scan_filtered[i] = scan_data[i]
+
+        for i in range(self.scan_range):
+            if self.scan_origin[i] == 0:
+                cont = 0
+                sum = 0
+                for j in range(1, 21):
+                    if i - j >= 0:
+                        if self.scan_origin[i - j] != 0:
+                            cont += 1
+                            sum += self.scan_origin[i - j]
+                    if i + j < self.scan_range:
+                        if self.scan_origin[i + j] != 0:
+                            cont += 1
+                            sum += self.scan_origin[i + j]
+                self.scan_origin[i] = sum / cont
+                self.scan_filtered[i] = sum / cont
+
+        for i in range(self.scan_range - 1):
+            if self.scan_origin[i] * self.FILTER_SCALE < self.scan_filtered[i + 1]:
+                unit_length = self.scan_origin[i] * self.interval
+                filter_num = self.ROBOT_SCALE / unit_length
+
+                j = 1
+                while j < filter_num + 1:
+                    if i + j < self.scan_range:
+                        if self.scan_filtered[i + j] > self.scan_origin[i]:
+                            self.scan_filtered[i + j] = self.scan_origin[i]
+                        else:
+                            break
+                    else:
+                        break
+                    j += 1
+
+            elif self.scan_filtered[i] > self.scan_origin[i + 1] * self.FILTER_SCALE:
+                unit_length = self.scan_origin[i + 1] * self.interval
+                filter_num = self.ROBOT_SCALE / unit_length
+
+                j = 0
+                while j < filter_num + 1:
+                    if i - j > 0:
+                        if self.scan_filtered[i - j] > self.scan_origin[i + 1]:
+                            self.scan_filtered[i - j] = self.scan_origin[i + 1]
+                        else:
+                            break
+                    else:
+                        break
+                    j += 1
+
+    def setSteeringAngle(self):
+        steering_angle = np.arctan2(self.RACECAR_LENGTH, self.goal_path_radius)
+
+        steer = self.steering_direction * steering_angle
+        return steer
+
+    def driving(self, scan_data, odom_data):
+        """
+
+        :param scan_data: scan data
+        :param odom_data: odom data
+        :return: steer, speed
+        """
+        self.subCallback_scan(scan_data)
+        self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
+        self.current_speed = odom_data['linear_vel']
+
+        self.find_nearest_wp()
+        self.get_lookahead_desired()
+        self.find_desired_wp()
+
+        self.transformed_desired_point = self.transformPoint(self.current_position, self.desired_point)
+
+        self.find_path()
+
+        steer = self.setSteeringAngle()
+        # speed = self.setSpeed_PossibleMaximumTest()
+        speed = self.speed_controller()
+
+        return speed, steer
