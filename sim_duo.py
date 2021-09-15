@@ -101,16 +101,16 @@ if __name__ == '__main__':
         data['p1']['planner_speed'].append(p1_speed)
         data['p1']['env_speed'].append(obs['linear_vels_x'][0])
         data['p1']['max_speed'] = np.max(data['p1']['env_speed'])
-        data['p1']['min_speed'] = np.max(data['p1']['env_speed'])
+        data['p1']['min_speed'] = np.min(data['p1']['env_speed'])
         data['p1']['avg_speed'] = np.mean(data['p1']['env_speed'])
         data['p1']['collision'] = True if obs['collisions'][0] == 1. else False
 
         data['p2']['planner_speed'].append(p2_speed)
         data['p2']['env_speed'].append(obs['linear_vels_x'][1])
         data['p2']['max_speed'] = np.max(data['p2']['env_speed'])
-        data['p2']['min_speed'] = np.max(data['p2']['env_speed'])
+        data['p2']['min_speed'] = np.min(data['p2']['env_speed'])
         data['p2']['avg_speed'] = np.mean(data['p2']['env_speed'])
-        data['p1']['collision'] = True if obs['collisions'][1] == 1. else False
+        data['p2']['collision'] = True if obs['collisions'][1] == 1. else False
 
         ax1_plot.append([obs['linear_vels_x'][0], obs['linear_vels_x'][1]])
         ax2_plot.append([p1_speed, p2_speed])
