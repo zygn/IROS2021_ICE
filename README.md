@@ -1,8 +1,6 @@
 # IROS2021_ICE
 
 ## Usage (py_gym)
----
-
 
 ### 1. Requirements
 
@@ -19,14 +17,14 @@
 2. F1TENTH Gym Environment
     
    to install f1tenth_gym, follow the [Quickstart](https://github.com/f1tenth/f1tenth_gym) at f1tenth/f1tenth_gym or try:
-   ```commandline
+   ```bash
    pip3 install --user -e gym/
    ```
 
 ### 2. Run
 
 1. Quickstart
-   ```commandline
+   ```bash
    # run qualification
    python3 sim_solo.py
    
@@ -38,7 +36,7 @@
 
    1. `sim_solo.py`
    
-      ```buildoutcfg
+      ```python
       # Import class from planner/ folder.
       from planner.fgm_stech import FGM
       from planner.fgm_gnu import FGM_GNU
@@ -56,7 +54,7 @@
       ```
       
    2. `sim_duo.py`
-      ```buildoutcfg
+      ```python
       # Import class from planner/ folder.
       from planner.fgm_stech import FGM
       from planner.fgm_gnu import FGM_GNU
@@ -77,7 +75,7 @@
  
    If you want to change the parameters, you need modify `sim_params.yaml`
    
-   ```buildoutcfg
+   ```yaml
    # Environment Constants
    map_path: "map/SOCHI_OBS"
    map_ext: '.png'
