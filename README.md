@@ -17,7 +17,7 @@
 2. F1TENTH Gym Environment
     
    to install f1tenth_gym, follow the [Quickstart](https://github.com/f1tenth/f1tenth_gym) at f1tenth/f1tenth_gym or try:
-   ```bash
+   ```commandline
    pip3 install --user -e gym/
    ```
 
@@ -80,15 +80,14 @@
    map_path: "map/SOCHI_OBS"
    map_ext: '.png'
    
-   p1:               
+   p1:                  # planner 1 (solo|duo_1p) starting point 
      sx: 0.8007017
      sy: -0.2753365
      stheta: 4.1421595
-   p2:               
+   p2:                  # planner 2 (duo_2p) starting point 
      sx: 0.8162458
      sy: 1.1614572
      stheta: 4.1446321
-   
    
    # Speed Controller
    # 0: Constant
@@ -96,7 +95,6 @@
    # 2: Angle Based
    # 3: Braking dist + Angle Based
    speed_controller: 3
-   
    
    # Debugging Settings
    debug:
@@ -106,8 +104,6 @@
      collision_reset: true      # restart at collision (true|false)
      collision_interval: 2      # repeat time at collision (int)
    
-   
-   
    # Planner Constants
    wpt_path: 'map/wp_SOCHI.csv' # path of waypoint file (you **MUST** change!)
    wpt_delimeter: ','           # delimiter of csv file
@@ -115,38 +111,24 @@
    max_speed: 14.0              # Max speed 
    min_speed: 5.0               # Min speed 
    
-   robot_length: 0.3302
-   robot_scale: 0.2032
-   mass: 3.47
+   robot_length: 0.3302         # length of wheelbase
+   robot_scale: 0.2032          # width of car
+   mass: 3.47                   # mass of car
    
-   mu: 0.523
-   pi: 3.141592
-   g: 9.81
+   mu: 0.523                    # surface friction coefficient
+   pi: 3.141592                 # π
+   g: 9.81                      # Gravitational acceleration 
    
    fgm:
-     look: 2.0
+     look: 2.0                  # lookahead distance
      threshold: 3.0
      gap_size: 1
      filter_scale: 1.1
      gap_theta_gain: 20.0
      ref_theta_gain: 1.5
    
-   odg:
+   odg:   
      threshold: 2.0
      filter_scale: 1.1
 
    ```
-
-   - `wpt_path` - **real** path of waypoint file (you **MUST** change!)
-   - `wpt_delimeter` - delimiter of csv file
-   - `max_speed` - Max speed 
-   - `min_speed` - Min speed
-   - `rate` - provide particular rate for a loop (Hz)
-   - `robot_length` - length of wheelbase
-    
-   - `robot_scale` - width of car
-   - `mass` - mass of car
-   - `mu` - surface friction coefficient
-   - `pi` - π
-   - `g`- Gravitational acceleration 
-    
