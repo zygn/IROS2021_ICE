@@ -1,10 +1,14 @@
 import numpy as np
+import concurrent.futures
 import time
+
+from fgm_for_fgmpp import FGM
+from pp_for_fgmpp import PP
 
 
 class PP:
     def __init__(self, params):
-
+        self.params = params
         self.RACECAR_LENGTH = params.robot_length
         self.ROBOT_LENGTH = params.robot_length
         self.SPEED_MAX = params.max_speed
@@ -19,15 +23,13 @@ class PP:
         self.waypoint_delimeter = params.wpt_delimeter
         self.waypoints = self.get_waypoint()
 
-
-
         self.wp_index_current = 0
         self.current_position = [0] * 3
         self.nearest_distance = 0
         self.lookahead_desired = 0
         self.desired_point = 0
         self.actual_lookahead = 0
-        self.CURRENT_WP_CHECK_OFFSET= 2
+        self.CURRENT_WP_CHECK_OFFSET = 2
         self.transformed_desired_point = 0
 
         self.steering_direction = 0
@@ -39,7 +41,7 @@ class PP:
         self.scan_range = 0
 
     def get_waypoint(self):
-        file_wps = np.genfromtxt(self.waypoint_real_path, delimiter = self.waypoint_delimeter, dtype='float')
+        file_wps = np.genfromtxt(self.waypoint_real_path, delimiter=self.waypoint_delimeter, dtype='float')
 
         temp_waypoint = []
         for i in file_wps:
@@ -48,7 +50,6 @@ class PP:
             self.wp_num += 1
         # print("wp_num",self.wp_num)
         return temp_waypoint
-
 
     def speed_controller(self):
         current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
@@ -115,7 +116,7 @@ class PP:
     def get_lookahead_desired(self):
         _vel = self.current_speed
         # self.lookahead_desired = 0.5 + (0.3 * _vel)
-        self.lookahead_desired = 0.5 + (0.3 * _vel)
+        self.lookahead_desired = 1.0 + (0.3 * _vel)
 
     def getDistance(self, a, b):
         dx = a[0] - b[0]
@@ -147,24 +148,6 @@ class PP:
         rtpoint.append(np.arctan2(y, x) - (self.PI / 2))
         return rtpoint
 
-    def find_path(self):
-        #right cornering
-        if self.transformed_desired_point[0] > 0:
-            self.goal_path_radius = pow(self.actual_lookahead, 2)/(2*self.transformed_desired_point[0])
-            self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
-            self.steering_direction = -1
-
-        #left cornering
-        else:
-            self.goal_path_radius = pow(self.actual_lookahead, 2)/((-2)*self.transformed_desired_point[0])
-            self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
-            self.steering_direction = 1
-
-    def setSteeringAngle(self):
-        steering_angle = np.arctan2(self.RACECAR_LENGTH, self.goal_path_radius)
-
-        steer = self.steering_direction * steering_angle
-        return steer
 
     def driving(self, scan_data, odom_data):
         """
@@ -186,10 +169,21 @@ class PP:
         self.get_lookahead_desired()
         self.find_desired_wp()
         self.transformed_desired_point = self.transformPoint(self.current_position, self.desired_point)
-        self.find_path()
-        steer = self.setSteeringAngle()
+
+        drivers=[FGM(),PP()]
+        futures =[]
+        actions = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for i, driver in enumerate(drivers):
+                futures.append(executor.submit(
+                    driver.driving,
+                    scan_data, odom_data)
+                )
+        ##obstacle dectect 코드 추가
+
+        for future in futures:
+            steer = future.result()
+            actions.append([steer])
+        #obs의 유무에따른 어떤 steer값을 받을지 선택
         speed = self.speed_controller()
-
-
-
         return speed, steer
