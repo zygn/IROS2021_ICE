@@ -2,6 +2,10 @@ import numpy as np
 from .speed_controller import SpeedController
 
 class FGM:
+    PREPROCESS_CONV_SIZE = 100  # PREPROCESS_consecutive_SIZE
+    BEST_POINT_CONV_SIZE = 80
+    MAX_LIDAR_DIST = 3000000
+    STRAIGHTS_STEERING_ANGLE = np.pi / 18
     def __init__(self, params):
         self.params = params
         self.RACECAR_LENGTH = params.robot_length
@@ -310,7 +314,7 @@ class FGM:
             return self.gaps[gap_idx]
 
     def main_drive(self, goal):
-        self.max_angle = (goal[2] - self.front_idx)*self.interval
+        self.max_angle = (goal - self.front_idx)*self.interval
         self.wp_angle = self.desired_wp_rt[1]
 
         #range_min_values = [0]*10
