@@ -3,5 +3,4 @@
 .temp
 *.pyc
 *.pyi
-gym
 log
