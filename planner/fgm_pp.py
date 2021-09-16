@@ -1,12 +1,12 @@
 import numpy as np
-import concurrent.futures
+import math
 import time
 
-from fgm_for_fgmpp import FGM
-from pp_for_fgmpp import PP
 
 
-class PP:
+
+
+class FGM_PP:
     def __init__(self, params):
         self.params = params
         self.RACECAR_LENGTH = params.robot_length
@@ -39,6 +39,19 @@ class PP:
         self.current_speed = 5.0
         self.scan_filtered = []
         self.scan_range = 0
+
+        self.radians_per_elem = 0
+        self.PREPROCESS_CONV_SIZE = 3
+        self.BEST_POINT_CONV_SIZE = 80
+        self.MAX_LIDAR_DIST = 3000000
+
+        self.scan_obs = []
+        self.dect_obs = []
+        self.len_obs = []
+        self.obs = False
+
+        self.BUBBLE_RADIUS = 160
+
 
     def get_waypoint(self):
         file_wps = np.genfromtxt(self.waypoint_real_path, delimiter=self.waypoint_delimeter, dtype='float')
@@ -116,7 +129,7 @@ class PP:
     def get_lookahead_desired(self):
         _vel = self.current_speed
         # self.lookahead_desired = 0.5 + (0.3 * _vel)
-        self.lookahead_desired = 1.0 + (0.3 * _vel)
+        self.lookahead_desired = 0.5 + (0.3 * _vel)
 
     def getDistance(self, a, b):
         dx = a[0] - b[0]
@@ -148,6 +161,143 @@ class PP:
         rtpoint.append(np.arctan2(y, x) - (self.PI / 2))
         return rtpoint
 
+    def preprocess_lidar(self, scan_data):
+        self.scan_range = len(scan_data)
+        self.scan_filtered = [0] * self.scan_range
+        for i in range(self.scan_range):
+            self.scan_filtered[i] = scan_data[i]
+        self.radians_per_elem = 0.00435
+        proc_ranges = np.convolve(scan_data, np.ones(self.PREPROCESS_CONV_SIZE), 'same') / self.PREPROCESS_CONV_SIZE
+        proc_ranges = np.clip(proc_ranges, 0, self.MAX_LIDAR_DIST)
+        return proc_ranges
+
+    def obs_dect(self):
+        #for i in range(1, self.scan_range - 1):
+        self.scan_obs = []
+        i=1
+        d_group = 1.5
+        d_pi = 0.00628
+        while(self.scan_range - 1>i):
+            start_idx_temp = i
+            end_idx_temp = i
+            max_idx_temp = i
+            min_idx_temp = i
+            i = i+1
+            while  math.sqrt(math.pow(self.scan_filtered[i]*math.sin(math.radians(0.25)),2) + math.pow(self.scan_filtered[i-1]-self.scan_filtered[i]*math.cos(math.radians(0.25)),2)) < d_group + self.scan_filtered[i]*d_pi and (i+1 < self.scan_range ):
+                if self.scan_filtered[i] > self.scan_filtered[max_idx_temp]:
+                    max_idx_temp = i
+                if self.scan_filtered[i] < self.scan_filtered[min_idx_temp]:
+                    min_idx_temp = i
+                i = i+1
+            end_idx_temp = i-1
+            obs_temp = [0]*5
+            obs_temp[0] = start_idx_temp
+            obs_temp[1] = end_idx_temp
+            obs_temp[2] = max_idx_temp
+            obs_temp[3] = self.scan_filtered[max_idx_temp]
+            obs_temp[4] = self.scan_filtered[min_idx_temp]
+            self.scan_obs.append(obs_temp)
+            i+=1
+
+        self.dect_obs=[]
+        for i in range(len(self.scan_obs)):
+            if self.scan_obs[i][3] < 4 and self.scan_obs[i][3] > 0:
+                obs_temp = [0]*5
+                obs_temp[0] = self.scan_obs[i][0]
+                obs_temp[1] = self.scan_obs[i][1]
+                obs_temp[2] = self.scan_obs[i][2]
+                obs_temp[3] = self.scan_obs[i][3]
+                obs_temp[4] = self.scan_obs[i][4]
+                self.dect_obs.append(obs_temp)
+        #print(self.dect_obs)
+        self.len_obs=[]
+
+        for i in range(len(self.dect_obs)):
+            theta = (self.dect_obs[i][1] - self.dect_obs[i][0])*0.25
+            lengh = math.sqrt(math.pow(self.scan_filtered[self.dect_obs[i][1]]*math.sin(math.radians(theta)),2) + math.pow(self.scan_filtered[self.dect_obs[i][0]]-self.scan_filtered[self.dect_obs[i][1]]*math.cos(math.radians(theta)),2))
+            #print(i,lengh)
+            if lengh < 1:
+                obs_temp = [0]*5
+                obs_temp[0] = self.dect_obs[i][0]
+                obs_temp[1] = self.dect_obs[i][1]
+                obs_temp[2] = self.dect_obs[i][2]
+                obs_temp[3] = self.dect_obs[i][3]
+                obs_temp[4] = self.dect_obs[i][4]
+                self.len_obs.append(obs_temp)
+        #print(self.len_obs)
+
+        self.obs = False
+        for i in range(len(self.len_obs)):
+            if self.len_obs[i][0] > 680 or self.len_obs[i][1] < 400:
+                self.obs = False
+            else:
+                self.obs= True
+                break
+
+    def find_path(self):
+        #right cornering
+        if self.transformed_desired_point[0] > 0:
+            self.goal_path_radius = pow(self.actual_lookahead, 2)/(2*self.transformed_desired_point[0])
+            self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
+            self.steering_direction = -1
+
+        #left cornering
+        else:
+            self.goal_path_radius = pow(self.actual_lookahead, 2)/((-2)*self.transformed_desired_point[0])
+            self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
+            self.steering_direction = 1
+
+    def setSteeringAngle(self):
+         steering_angle = np.arctan2(self.RACECAR_LENGTH, self.goal_path_radius)
+         steer = self.steering_direction * steering_angle
+         return steer
+
+    def find_max_gap(self, free_space_ranges):
+        # mask the bubble
+        masked = np.ma.masked_where(free_space_ranges == 0, free_space_ranges)
+        # get a slice for each contigous sequence of non-bubble data
+        slices = np.ma.notmasked_contiguous(masked)
+        max_len = slices[0].stop - slices[0].start
+        chosen_slice = slices[0]
+        # I think we will only ever have a maximum of 2 slices but will handle an
+        # indefinitely sized list for portablility
+        for sl in slices[1:]:
+            sl_len = sl.stop - sl.start
+            if sl_len > max_len:
+                max_len = sl_len
+                chosen_slice = sl
+        return chosen_slice.start, chosen_slice.stop
+
+    def find_best_point(self, start_i, end_i, ranges):
+            # do a sliding window average over the data in the max gap, this will
+            # help the car to avoid hitting corners
+        averaged_max_gap = np.convolve(ranges[start_i:end_i], np.ones(self.BEST_POINT_CONV_SIZE),'same') / self.BEST_POINT_CONV_SIZE
+        return averaged_max_gap.argmax() + start_i
+
+    def get_angle(self, range_index, range_len):
+        lidar_angle = (range_index - (range_len / 2)) * self.radians_per_elem
+        steering_angle = lidar_angle / 2
+        return steering_angle
+
+    def conv_fgm(self):
+        proc_ranges = self.scan_filtered[135:-135]
+        closest = proc_ranges.argmin()
+
+        min_index = closest - self.BUBBLE_RADIUS
+        max_index = closest + self.BUBBLE_RADIUS
+        if min_index < 0: min_index = 0
+        if max_index >= len(proc_ranges): max_index = len(proc_ranges) - 1
+        proc_ranges[min_index:max_index] = 0
+
+        gap_start, gap_end = self.find_max_gap(proc_ranges)
+
+        # Find the best point in the gap
+        best = self.find_best_point(gap_start, gap_end, proc_ranges)
+
+        # Publish Drive message
+        steering_angle = self.get_angle(best, len(proc_ranges))
+        return  steering_angle
+
 
     def driving(self, scan_data, odom_data):
         """
@@ -157,33 +307,24 @@ class PP:
         :return: steer, speed
         """
 
-        self.scan_range = len(scan_data)
-        self.scan_filtered = [0] * self.scan_range
-        for i in range(self.scan_range):
-            self.scan_filtered[i] = scan_data[i]
-
         self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
         self.current_speed = odom_data['linear_vel']
+        self.scan_filtered = self.preprocess_lidar(scan_data)
 
         self.find_nearest_wp()
         self.get_lookahead_desired()
         self.find_desired_wp()
         self.transformed_desired_point = self.transformPoint(self.current_position, self.desired_point)
+        self.obs_dect()
+        # if self.obs:
+        #     print(self.obs)
+        #self.obs = False
+        if self.obs:
+            steer = self.conv_fgm()
+            print("True")
+        else:
+            self.find_path()
+            steer = self.setSteeringAngle()
 
-        drivers=[FGM(),PP()]
-        futures =[]
-        actions = []
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            for i, driver in enumerate(drivers):
-                futures.append(executor.submit(
-                    driver.driving,
-                    scan_data, odom_data)
-                )
-        ##obstacle dectect 코드 추가
-
-        for future in futures:
-            steer = future.result()
-            actions.append([steer])
-        #obs의 유무에따른 어떤 steer값을 받을지 선택
         speed = self.speed_controller()
         return speed, steer
