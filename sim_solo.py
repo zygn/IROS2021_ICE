@@ -6,11 +6,8 @@ import csv
 from matplotlib import pyplot as plt
 from argparse import Namespace
 
-from planner.fgm_stech import FGM as GRP
-from planner.fgm_gnu import FGM_GNU
-from planner.odg_pf import ODGPF
-from planner.odg_gnu import ODGGNU
-from planner.fgm_conv import FGM_CONV
+# from planner.legacy.odg_pf import ODGPF
+from planner.fgm_stech_conv import FGM as FGM_CONV
 
 if __name__ == '__main__':
 
@@ -23,7 +20,6 @@ if __name__ == '__main__':
         print(f"Result will logged at {file_name}")
         csvfile = open(file_name, 'w', newline='')
         wdr = csv.writer(csvfile)
-        wdr.writerow(["algorithm", "laptime", "finish", "collision", "collision_reset", "max_speed", "avg_speed"])
 
     env = gym.make('f110_gym:f110-v0', map=conf.map_path, map_ext=conf.map_ext, num_agents=1)
     obs, step_reward, done, info = env.reset(np.array([[conf.p1['sx'], conf.p1['sy'], conf.p1['stheta']]]))
@@ -58,6 +54,7 @@ if __name__ == '__main__':
         speed, steer = planner.driving(scan_data, odom_data)
         obs, step_reward, done, info = env.step(np.array([[steer, speed]]))
         laptime += step_reward
+        collision = True if obs['collisions'][0] == 1. else False
 
         if conf.debug['gui_render']:
             env.render(mode='human_fast')
@@ -65,6 +62,7 @@ if __name__ == '__main__':
         env_speed = obs['linear_vels_x'][0]
         pln_speed = speed
         plot_interval += 1
+
         plot_list.append([env_speed, pln_speed])
         data_list.append(env_speed)
 
@@ -72,6 +70,8 @@ if __name__ == '__main__':
             plt.title(f"Env Speed: {env_speed}")
             plt.grid()
             plt.plot(plot_list)
+            plt.ylim(top=conf.max_speed)
+
             plt.legend(['Env Speed', 'Planner Speed'])
             plt.pause(0.005)
             plt.clf()
@@ -79,9 +79,8 @@ if __name__ == '__main__':
         if len(plot_list) >= 1000:
             del (plot_list[0])
 
-        if done and not info['checkpoint_done'][0] and conf.debug['collision_reset']:
-            collision = True
-            if done_i < conf.debug['collision_interval']:
+        if done and collision:
+            if conf.debug['collision_reset'] and done_i < conf.debug['collision_interval']:
                 done_i += 1
                 real_elapsed_time = time.time() - start
                 max_speed = np.max(data_list)
@@ -104,12 +103,17 @@ if __name__ == '__main__':
                 plot_list = []
                 data_list = []
 
+            if conf.debug['collision_pause']:
+                done = False
+
     real_elapsed_time = time.time() - start
     max_speed = np.max(data_list)
     avg_speed = np.mean(data_list)
 
     if conf.debug['logging']:
+        wdr.writerow(["algorithm", "laptime", "finish", "collision", "collision_reset", "max_speed", "avg_speed"])
         wdr.writerow([planner.__class__.__name__, laptime, done, collision, done_i, max_speed, avg_speed])
+        csvfile.close()
 
     print(f"\tEnvironment Max Speed: {max_speed}")
     print(f"\tEnvironment Average Speed: {avg_speed}")
@@ -117,5 +121,4 @@ if __name__ == '__main__':
     print(f"\tReal elasped time: {real_elapsed_time}")
     print(f"\tCollision: {collision}\n\n")
 
-    if conf.debug['logging']:
-        csvfile.close()
+    print(obs)
