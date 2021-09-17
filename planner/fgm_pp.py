@@ -2,10 +2,6 @@ import numpy as np
 import math
 import time
 
-
-
-
-
 class FGM_PP:
     def __init__(self, params):
         self.params = params

@@ -1,10 +1,13 @@
 import numpy as np
+import math
+import threading
+from queue import Queue
 import time
+from planner.pp_for_fgmpp import PP
 
-
-class PP:
+class FGM_PP:
     def __init__(self, params):
-
+        self.params = params
         self.RACECAR_LENGTH = params.robot_length
         self.ROBOT_LENGTH = params.robot_length
         self.SPEED_MAX = params.max_speed
@@ -19,15 +22,13 @@ class PP:
         self.waypoint_delimeter = params.wpt_delimeter
         self.waypoints = self.get_waypoint()
 
-
-
         self.wp_index_current = 0
         self.current_position = [0] * 3
         self.nearest_distance = 0
         self.lookahead_desired = 0
         self.desired_point = 0
         self.actual_lookahead = 0
-        self.CURRENT_WP_CHECK_OFFSET= 2
+        self.CURRENT_WP_CHECK_OFFSET = 2
         self.transformed_desired_point = 0
 
         self.steering_direction = 0
@@ -38,8 +39,25 @@ class PP:
         self.scan_filtered = []
         self.scan_range = 0
 
+        self.radians_per_elem = 0
+        self.PREPROCESS_CONV_SIZE = 3
+        self.BEST_POINT_CONV_SIZE = 80
+        self.MAX_LIDAR_DIST = 3000000
+
+        self.scan_obs = []
+        self.dect_obs = []
+        self.len_obs = []
+        self.obs = False
+
+        self.main_global_q = Queue(1)
+        self.global_main_q = Queue(1)
+
+        self.global_t = PP(self.main_global_q, self.global_main_q)
+        self.global_t.start()
+
+
     def get_waypoint(self):
-        file_wps = np.genfromtxt(self.waypoint_real_path, delimiter = self.waypoint_delimeter, dtype='float')
+        file_wps = np.genfromtxt(self.waypoint_real_path, delimiter=self.waypoint_delimeter, dtype='float')
 
         temp_waypoint = []
         for i in file_wps:
@@ -49,40 +67,179 @@ class PP:
         # print("wp_num",self.wp_num)
         return temp_waypoint
 
+    def speed_controller(self):
+        current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
+        if np.isnan(current_distance):
+            print("SCAN ERR")
+            current_distance = 1.0
+
+        if self.current_speed > 10:
+            current_distance -= self.current_speed * 0.7
+
+        maximum_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * current_distance) - 2
+
+        if maximum_speed >= self.SPEED_MAX:
+            maximum_speed = self.SPEED_MAX
+
+        if self.current_speed <= maximum_speed:
+            # ACC
+            if self.current_speed >= 10:
+                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * 0.8)
+            else:
+                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * self.ROBOT_LENGTH)
+        else:
+            # set_speed = 0
+            set_speed = self.current_speed - np.fabs((maximum_speed - self.current_speed) * 0.2)
+        # print("speed :", set_speed, "current", maximum_speed)
+        return set_speed
+
+    def find_nearest_wp(self):
+        wp_index_temp = self.wp_index_current
+        self.nearest_distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+
+        while True:
+            wp_index_temp += 1
+            if wp_index_temp >= len(self.waypoints) - 1:
+                wp_index_temp = 0
+
+            temp_distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+
+            if temp_distance < self.nearest_distance:
+                self.nearest_distance = temp_distance
+                self.wp_index_current = wp_index_temp
+            elif temp_distance > (self.nearest_distance + self.CURRENT_WP_CHECK_OFFSET) or (
+                    wp_index_temp == self.wp_index_current):
+                break
+
+        transformed_nearest_point = self.transformPoint(self.current_position, self.waypoints[self.wp_index_current])
+        if (transformed_nearest_point[0] < 0): self.nearest_distance *= -1
+
+    def find_desired_wp(self):
+        wp_index_temp = self.wp_index_current
+        while (1):
+            if (wp_index_temp >= len(self.waypoints) - 1): wp_index_temp = 0
+            distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+            if distance >= self.lookahead_desired:
+                if wp_index_temp - 2 >= 0 and wp_index_temp + 2 < len(self.waypoints) - 1:
+                    self.waypoints[wp_index_temp][2] = np.arctan(
+                        (self.waypoints[wp_index_temp + 2][1] - self.waypoints[wp_index_temp - 2][1]) /
+                        self.waypoints[wp_index_temp + 2][0] - self.waypoints[wp_index_temp - 2][0])
+                self.desired_point = self.waypoints[wp_index_temp]
+                self.actual_lookahead = distance
+                break
+            wp_index_temp += 1
 
     def get_lookahead_desired(self):
         _vel = self.current_speed
         # self.lookahead_desired = 0.5 + (0.3 * _vel)
-        self.lookahead_desired = 1 + (0.3 * _vel)
+        self.lookahead_desired = 0.5 + (0.3 * _vel)
 
-    def find_path(self):
-        #right cornering
-        if self.transformed_desired_point[0] > 0:
-            self.goal_path_radius = pow(self.actual_lookahead, 2)/(2*self.transformed_desired_point[0])
-            self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
-            self.steering_direction = -1
+    def getDistance(self, a, b):
+        dx = a[0] - b[0]
+        dy = a[1] - b[1]
+        return np.sqrt(dx ** 2 + dy ** 2)
 
-        #left cornering
-        else:
-            self.goal_path_radius = pow(self.actual_lookahead, 2)/((-2)*self.transformed_desired_point[0])
-            self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
-            self.steering_direction = 1
+    def transformPoint(self, origin, target):
+        theta = self.PI / 2 - origin[2]
 
-    def setSteeringAngle(self):
-        steering_angle = np.arctan2(self.RACECAR_LENGTH, self.goal_path_radius)
+        dx = target[0] - origin[0]
+        dy = target[1] - origin[1]
+        dtheta = target[2] + theta
 
-        steer = self.steering_direction * steering_angle
-        return steer
+        tf_point_x = dx * np.cos(theta) - dy * np.sin(theta)
+        tf_point_y = dx * np.sin(theta) + dy * np.cos(theta)
+        tf_point_theta = dtheta
+        tf_point = [tf_point_x, tf_point_y, tf_point_theta]
 
-    def preprocess_lidar(self, ranges):
+        return tf_point
 
+    def xyt2rt(self, origin):
+        rtpoint = []
+
+        x = origin[0]
+        y = origin[1]
+
+        # rtpoint[0] = r, [1] = theta
+        rtpoint.append(np.sqrt(x * x + y * y))
+        rtpoint.append(np.arctan2(y, x) - (self.PI / 2))
+        return rtpoint
+
+    def preprocess_lidar(self, scan_data):
+        self.scan_range = len(scan_data)
+        self.scan_filtered = [0] * self.scan_range
+        for i in range(self.scan_range):
+            self.scan_filtered[i] = scan_data[i]
         self.radians_per_elem = 0.00435
-        proc_ranges = np.convolve(proc_ranges, np.ones(self.PREPROCESS_CONV_SIZE), 'same') / self.PREPROCESS_CONV_SIZE
+        proc_ranges = np.convolve(scan_data, np.ones(self.PREPROCESS_CONV_SIZE), 'same') / self.PREPROCESS_CONV_SIZE
         proc_ranges = np.clip(proc_ranges, 0, self.MAX_LIDAR_DIST)
         return proc_ranges
 
-    def driving(self, scan_data, odom_data, transformed_desired_point):
+    def obs_dect(self):
+        #for i in range(1, self.scan_range - 1):
+        self.scan_obs = []
+        i=1
+        d_group = 1.5
+        d_pi = 0.00628
+        while(self.scan_range - 1>i):
+            start_idx_temp = i
+            end_idx_temp = i
+            max_idx_temp = i
+            min_idx_temp = i
+            i = i+1
+            while  math.sqrt(math.pow(self.scan_filtered[i]*math.sin(math.radians(0.25)),2) + math.pow(self.scan_filtered[i-1]-self.scan_filtered[i]*math.cos(math.radians(0.25)),2)) < d_group + self.scan_filtered[i]*d_pi and (i+1 < self.scan_range ):
+                if self.scan_filtered[i] > self.scan_filtered[max_idx_temp]:
+                    max_idx_temp = i
+                if self.scan_filtered[i] < self.scan_filtered[min_idx_temp]:
+                    min_idx_temp = i
+                i = i+1
+            end_idx_temp = i-1
+            obs_temp = [0]*5
+            obs_temp[0] = start_idx_temp
+            obs_temp[1] = end_idx_temp
+            obs_temp[2] = max_idx_temp
+            obs_temp[3] = self.scan_filtered[max_idx_temp]
+            obs_temp[4] = self.scan_filtered[min_idx_temp]
+            self.scan_obs.append(obs_temp)
+            i+=1
+
+        self.dect_obs=[]
+        for i in range(len(self.scan_obs)):
+            if self.scan_obs[i][3] < 4 and self.scan_obs[i][3] > 0:
+                obs_temp = [0]*5
+                obs_temp[0] = self.scan_obs[i][0]
+                obs_temp[1] = self.scan_obs[i][1]
+                obs_temp[2] = self.scan_obs[i][2]
+                obs_temp[3] = self.scan_obs[i][3]
+                obs_temp[4] = self.scan_obs[i][4]
+                self.dect_obs.append(obs_temp)
+        #print(self.dect_obs)
+        self.len_obs=[]
+
+        for i in range(len(self.dect_obs)):
+            theta = (self.dect_obs[i][1] - self.dect_obs[i][0])*0.25
+            lengh = math.sqrt(math.pow(self.scan_filtered[self.dect_obs[i][1]]*math.sin(math.radians(theta)),2) + math.pow(self.scan_filtered[self.dect_obs[i][0]]-self.scan_filtered[self.dect_obs[i][1]]*math.cos(math.radians(theta)),2))
+            #print(i,lengh)
+            if lengh < 1:
+                obs_temp = [0]*5
+                obs_temp[0] = self.dect_obs[i][0]
+                obs_temp[1] = self.dect_obs[i][1]
+                obs_temp[2] = self.dect_obs[i][2]
+                obs_temp[3] = self.dect_obs[i][3]
+                obs_temp[4] = self.dect_obs[i][4]
+                self.len_obs.append(obs_temp)
+        #print(self.len_obs)
+
+        self.obs = False
+        for i in range(len(self.len_obs)):
+            if self.len_obs[i][0] > 680 or self.len_obs[i][1] < 400:
+                self.obs = False
+            else:
+                self.obs= True
+                break
+
+    def driving(self, scan_data, odom_data):
         """
+
         :param scan_data: scan data
         :param odom_data: odom data
         :return: steer, speed
@@ -90,10 +247,25 @@ class PP:
 
         self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
         self.current_speed = odom_data['linear_vel']
+        self.scan_filtered = self.preprocess_lidar(scan_data)
 
+        self.find_nearest_wp()
         self.get_lookahead_desired()
-        self.transformed_desired_point = transformed_desired_point
-        self.find_path()
-        steer = self.setSteeringAngle()
+        self.find_desired_wp()
+        self.transformed_desired_point = self.transformPoint(self.current_position, self.desired_point)
 
-        return steer
+        data = [self.current_position , self.current_speed, self.scan_filtered, self.transformed_desired_point]
+        self.main_global_q.put(data)
+
+        self.obs_dect()
+        # if self.obs:
+        #     print(self.obs)
+        self.obs = False
+        if self.obs:
+            print("True")
+            steer = 0
+        else:
+            steer = self.global_main_q.get()
+
+        speed = self.speed_controller()
+        return speed, steer
