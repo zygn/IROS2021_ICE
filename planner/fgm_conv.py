@@ -1,5 +1,5 @@
 import numpy as np
-from .speed_controller import SpeedController as SC
+from .sub_planner.speed_controller import SpeedController as SC
 
 class FGM_CONV:
     BUBBLE_RADIUS = 160
@@ -21,6 +21,7 @@ class FGM_CONV:
         self.ROBOT_LENGTH = params.robot_length
 
         self.speed_controller = SC(params)
+        self.speed_past = 0
 
 
     def preprocess_lidar(self, ranges):
@@ -76,6 +77,7 @@ class FGM_CONV:
         best = self.find_best_point(gap_start, gap_end, proc_ranges)
 
         steering_angle = self.get_angle(best, len(proc_ranges))
-        speed = self.speed_controller.routine(self.scan_filtered, self.current_speed, steering_angle, 0)
+        speed = self.speed_controller.routine(scan_data, self.speed_past, steering_angle, 0)
+        self.speed_past = speed
 
         return speed, steering_angle

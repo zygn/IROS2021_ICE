@@ -3,10 +3,12 @@ import math
 import threading
 from queue import Queue
 import time
-from planner.pp_for_fgmpp import PP
-from planner.fgm_for_fgmpp import FGM
 
-class FGM_PP:
+from planner.sub_planner.fgm_for_fgmpp import FGM
+from planner.sub_planner.pp_for_fgmpp import PP
+from .sub_planner.speed_controller import SpeedController as SC
+
+class FGM_PP_V2:
     def __init__(self, params):
         self.params = params
         self.RACECAR_LENGTH = params.robot_length

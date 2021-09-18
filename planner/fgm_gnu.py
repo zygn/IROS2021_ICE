@@ -1,4 +1,4 @@
-from .speed_controller import SpeedController as SC
+from .sub_planner.speed_controller import SpeedController as SC
 
 import numpy as np
 import time

@@ -1,8 +1,9 @@
 import numpy as np
 import math
 import time
+from .sub_planner.speed_controller import SpeedController as SC
 
-class FGM_PP:
+class FGM_PP_V1:
     def __init__(self, params):
         self.params = params
         self.RACECAR_LENGTH = params.robot_length

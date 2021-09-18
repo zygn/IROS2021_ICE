@@ -1,3 +1,4 @@
+from .sub_planner.speed_controller import SpeedController as SC
 import numpy as np
 import time
 
@@ -38,6 +39,8 @@ class PP:
         self.scan_filtered = []
         self.scan_range = 0
 
+        self.speed_control = SC(params)
+
     def get_waypoint(self):
         file_wps = np.genfromtxt(self.waypoint_real_path, delimiter = self.waypoint_delimeter, dtype='float')
 
@@ -48,33 +51,6 @@ class PP:
             self.wp_num += 1
         # print("wp_num",self.wp_num)
         return temp_waypoint
-
-
-    def speed_controller(self):
-        current_distance = np.fabs(np.average(self.scan_filtered[499:580]))
-        if np.isnan(current_distance):
-            print("SCAN ERR")
-            current_distance = 1.0
-
-        if self.current_speed > 10:
-            current_distance -= self.current_speed * 0.7
-
-        maximum_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * current_distance) - 2
-
-        if maximum_speed >= self.SPEED_MAX:
-            maximum_speed = self.SPEED_MAX
-
-        if self.current_speed <= maximum_speed:
-            # ACC
-            if self.current_speed >= 10:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * 0.8)
-            else:
-                set_speed = self.current_speed + np.fabs((maximum_speed - self.current_speed) * self.ROBOT_LENGTH)
-        else:
-            # set_speed = 0
-            set_speed = self.current_speed - np.fabs((maximum_speed - self.current_speed) * 0.2)
-        # print("speed :", set_speed, "current", maximum_speed)
-        return set_speed
 
     def find_nearest_wp(self):
         wp_index_temp = self.wp_index_current
@@ -188,7 +164,7 @@ class PP:
         self.transformed_desired_point = self.transformPoint(self.current_position, self.desired_point)
         self.find_path()
         steer = self.setSteeringAngle()
-        speed = self.speed_controller()
+        speed = self.speed_control.routine(self.scan_filtered,self.current_speed,steer,self.wp_index_current)
 
 
 

@@ -1,7 +1,7 @@
 import numpy as np
-from .speed_controller import SpeedController
+from .sub_planner.speed_controller import SpeedController as SC
 
-class FGM:
+class FGM_STECH_CONV:
     PREPROCESS_CONV_SIZE = 100  # PREPROCESS_consecutive_SIZE
     BEST_POINT_CONV_SIZE = 80
     MAX_LIDAR_DIST = 3000000
