@@ -1,5 +1,6 @@
 import gym
 import time
+import copy
 import yaml
 import numpy as np
 import csv
@@ -8,10 +9,11 @@ from argparse import Namespace
 
 from planner.fgm_stech import FGM
 from planner.fgm_gnu import FGM_GNU
-from planner.odg_pf import ODGPF
-from planner.odg_gnu import ODGGNU
+from planner.legacy.odg_pf import ODGPF
+from planner.legacy.odg_gnu import ODGGNU
 from planner.fgm_conv import FGM_CONV
 from planner.fgm_stech_conv import FGM as FGM_STECH_CONV
+from planner.pp import PP
 
 if __name__ == '__main__':
 
@@ -33,10 +35,11 @@ if __name__ == '__main__':
     if conf.debug['gui_render']:
         env.render()
 
-    conf_temp = conf
-    conf_temp.speed_controller = 1
+    conf_temp = copy.copy(conf)
+    conf_temp.speed_controller = 2
+    
 
-    planner = [FGM_CONV(conf), FGM_STECH_CONV(conf)]
+    planner = [PP(conf_temp), FGM_CONV(conf)]
 
     laptime = 0.0
     start = time.time()
