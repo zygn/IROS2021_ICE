@@ -4,6 +4,7 @@ import threading
 from queue import Queue
 import time
 from planner.pp_for_fgmpp import PP
+from planner.fgm_for_fgmpp import FGM
 
 class FGM_PP:
     def __init__(self, params):
@@ -52,8 +53,13 @@ class FGM_PP:
         self.main_global_q = Queue(1)
         self.global_main_q = Queue(1)
 
+        self.main_local_q = Queue(1)
+        self.local_main_q = Queue(1)
+
         self.global_t = PP(self.main_global_q, self.global_main_q)
+        self.local_t = FGM(self.main_local_q, self.local_main_q)
         self.global_t.start()
+        self.local_t.start()
 
 
     def get_waypoint(self):
@@ -256,16 +262,18 @@ class FGM_PP:
 
         data = [self.current_position , self.current_speed, self.scan_filtered, self.transformed_desired_point]
         self.main_global_q.put(data)
+        self.main_local_q.put(data)
 
         self.obs_dect()
         # if self.obs:
         #     print(self.obs)
-        self.obs = False
+        #self.obs = False
         if self.obs:
-            print("True")
-            steer = 0
+            steer = self.local_main_q.get()
+            self.global_main_q.get()
         else:
             steer = self.global_main_q.get()
+            self.local_main_q.get()
 
         speed = self.speed_controller()
         return speed, steer

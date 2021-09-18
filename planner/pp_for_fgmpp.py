@@ -32,25 +32,23 @@ class PP(threading.Thread):
 
     def get_lookahead_desired(self):
         _vel = self.current_speed
-        # self.lookahead_desired = 0.5 + (0.3 * _vel)
-        self.lookahead_desired = 1 + (0.3 * _vel)
+        self.lookahead_desired = 0.5 + (0.3 * _vel)
 
     def find_path(self):
         #right cornering
         if self.transformed_desired_point[0] > 0:
-            self.goal_path_radius = pow(self.actual_lookahead, 2)/(2*self.transformed_desired_point[0])
+            self.goal_path_radius = pow(self.lookahead_desired, 2)/(2*self.transformed_desired_point[0])
             self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
             self.steering_direction = -1
 
         #left cornering
         else:
-            self.goal_path_radius = pow(self.actual_lookahead, 2)/((-2)*self.transformed_desired_point[0])
+            self.goal_path_radius = pow(self.lookahead_desired, 2)/((-2)*self.transformed_desired_point[0])
             self.goal_path_theta = np.arcsin(self.transformed_desired_point[1]/self.goal_path_radius)
             self.steering_direction = 1
 
     def setSteeringAngle(self):
         steering_angle = np.arctan2(self.RACECAR_LENGTH, self.goal_path_radius)
-
         steer = self.steering_direction * steering_angle
         return steer
 
