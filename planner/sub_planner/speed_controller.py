@@ -11,6 +11,7 @@ class SpeedController:
         self.PI = params.pi
         self.WHEEL_BASE = params.robot_length
         self.SPEED_MAX = params.max_speed
+        self.SPEED_MIN = params.min_speed
 
         self.scan = []
         self.current_speed = 5.0
@@ -48,10 +49,7 @@ class SpeedController:
 
         return braking_speed
 
-    def angle_based(self):
-        max_speed = 8.0
-        min_speed = 4.0
-
+    def angle_based(self, max_speed=8.0, min_speed=4.0):
         if np.fabs(self.steering_angle) > self.PI/8:
             angular_speed = min_speed
         else:
@@ -120,9 +118,10 @@ class SpeedController:
 
         braking_speed = self.braking_distance()
 
-        if current_distance < 3:
-            direction_speed = self.angle_based()
-        elif current_distance < 10 or np.fabs(road_direction) > self.PI/8 :
+        if current_distance < 5:
+            direction_speed = self.angle_based(self.SPEED_MAX, self.SPEED_MIN)
+            # direction_speed = self.speed_suspension(angle_speed)
+        elif current_distance < 10 or np.fabs(road_direction) > self.PI/16 :
             direction_speed = self.speed_suspension(braking_speed)
             # direction_speed = float(-(3 / self.PI) * (braking_speed - self.current_speed) * np.fabs(road_direction) + braking_speed)
         else:
@@ -137,7 +136,7 @@ class SpeedController:
             if self.current_speed <= 10:
                 final_speed = set_speed
             else:
-                final_speed = self.current_speed + np.fabs((set_speed - self.current_speed)*self.WHEEL_BASE)
+                final_speed = self.current_speed + np.fabs((set_speed - self.current_speed)*0.4)
         else:
             final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * 0.2)
 

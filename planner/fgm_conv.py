@@ -77,7 +77,7 @@ class FGM_CONV:
         best = self.find_best_point(gap_start, gap_end, proc_ranges)
 
         steering_angle = self.get_angle(best, len(proc_ranges))
-        speed = self.speed_controller.routine(scan_data, self.speed_past, steering_angle, 0)
+        speed = self.speed_controller.routine(scan_data, self.current_speed, steering_angle, 0)
         self.speed_past = speed
 
         return speed, steering_angle

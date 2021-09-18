@@ -37,10 +37,11 @@ if __name__ == '__main__':
         env.render()
 
     conf_temp = copy.copy(conf)
-    conf_temp.speed_controller = 2
+    conf_temp.speed_controller = 1
+    # conf_temp.wpt_path = 'map/wp_SOCHI_v2.csv'
     
 
-    planner = [PP(conf_temp), FGM_CONV(conf)]
+    planner = [FGM_CONV(conf_temp), FGM_PP_V2(conf_temp)]
 
     laptime = 0.0
     start = time.time()
@@ -56,7 +57,8 @@ if __name__ == '__main__':
             'max_speed': float,
             'min_speed': float,
             'avg_speed': float,
-            'collision': False
+            'collision': False,
+            'lap_times': 0.0
         },
         'p2': {
             'algorithm': planner[1].__class__.__name__,
@@ -65,7 +67,8 @@ if __name__ == '__main__':
             'max_speed': float,
             'min_speed': float,
             'avg_speed': float,
-            'collision': False
+            'collision': False,
+            'lap_times': 0.0
         }
     }
 
@@ -109,6 +112,7 @@ if __name__ == '__main__':
         data['p1']['min_speed'] = np.min(data['p1']['env_speed'])
         data['p1']['avg_speed'] = np.mean(data['p1']['env_speed'])
         data['p1']['collision'] = True if obs['collisions'][0] == 1. else False
+        data['p1']['lap_times'] = obs['lap_times'][0]
 
         data['p2']['planner_speed'].append(p2_speed)
         data['p2']['env_speed'].append(obs['linear_vels_x'][1])
@@ -116,6 +120,7 @@ if __name__ == '__main__':
         data['p2']['min_speed'] = np.min(data['p2']['env_speed'])
         data['p2']['avg_speed'] = np.mean(data['p2']['env_speed'])
         data['p2']['collision'] = True if obs['collisions'][1] == 1. else False
+        data['p2']['lap_times'] = obs['lap_times'][1]
 
         ax1_plot.append([obs['linear_vels_x'][0], obs['linear_vels_x'][1]])
         ax2_plot.append([p1_speed, p2_speed])
@@ -151,20 +156,22 @@ if __name__ == '__main__':
 
     if conf.debug['logging']:
         wdr.writerow(["algorithm", "laptime", "finish", "collision", "collision_reset", "max_speed", "avg_speed"])
-        wdr.writerow([data['p1']['algorithm'], laptime, done, data['p1']['collision'], done_i, data['p1']['max_speed'], data['p1']['collision']])
-        wdr.writerow([data['p2']['algorithm'], laptime, done, data['p1']['collision'], done_i, data['p2']['max_speed'], data['p2']['collision']])
+        wdr.writerow([data['p1']['algorithm'], data['p1']['lap_times'], done, data['p1']['collision'], done_i, data['p1']['max_speed'], data['p1']['collision']])
+        wdr.writerow([data['p2']['algorithm'], data['p2']['lap_times'], done, data['p2']['collision'], done_i, data['p2']['max_speed'], data['p2']['collision']])
         csvfile.close()
 
     print(f"Head-to-Head: {data['p1']['algorithm']} vs {data['p2']['algorithm']}")
-    print(f"\tSim elasped time: {laptime}")
+    # print(f"\tSim elasped time: {laptime}")
     print(f"\tReal elasped time: {real_elapsed_time}")
 
     print(f"Planner 1:")
     print(f"\tEnvironment Max Speed: {data['p1']['max_speed']}")
     print(f"\tEnvironment Average Speed: {data['p1']['avg_speed']}")
     print(f"\tCollision: {data['p1']['collision']}")
+    print(f"\tSim elasped time: {data['p1']['lap_times']}")
 
     print(f"Planner 2:")
     print(f"\tEnvironment Max Speed: {data['p2']['max_speed']}")
     print(f"\tEnvironment Average Speed: {data['p2']['avg_speed']}")
     print(f"\tCollision: {data['p2']['collision']}")
+    print(f"\tSim elasped time: {data['p2']['lap_times']}")
