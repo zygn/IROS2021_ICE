@@ -62,8 +62,8 @@ from pkg.drivers import DisparityExtender
 # choose your drivers here (1-4)
 drivers = [DisparityExtender()]
 
-# choose your racetrack here (SILVERSTONE, SILVERSTONE_OBS)
-RACETRACK = 'SILVERSTONE'
+# choose your racetrack here (SOCHI, SOCHI_OBS)
+RACETRACK = 'SOCHI'
 ...
 ```
 
@@ -100,18 +100,18 @@ from pkg.drivers import GapFollower, SimpleDriver
 # choose your drivers here (1-4)
 drivers = [GapFollower(), SimpleDriver()]
 
-# choose your racetrack here (SILVERSTONE, SILVERSTONE_OBS)
-RACETRACK = 'SILVERSTONE'
+# choose your racetrack here (SOCHI, SOCHI_OBS)
+RACETRACK = 'SOCHI'
 ```
 
 ### Changing Map
 
-You may choose between using the ordinary Silverstone map or the Silverstone Obstacles map. These are the two maps that will be used in the competition. To switch between them simply change the name of the selected `RACETRACK`
+You may choose between using the ordinary Sochi map or the Sochi Obstacles map. These are the two maps that will be used in the competition. To switch between them simply change the name of the selected `RACETRACK`
 
 ```python
 ...
-# choose your racetrack here (SILVERSTONE, SILVERSTONE_OBS)
-RACETRACK = 'SILVERSTONE_OBS'
+# choose your racetrack here (SOCHI, SOCHI_OBS)
+RACETRACK = 'SOCHI_OBS'
 ...
 ```
 
@@ -135,17 +135,20 @@ from pkg.drivers import DisparityExtender as Driver
 ...
 ```
 
+If you're using additional dependencies, make sure they are provided in the `pkg/requirements.txt` file (or update your Docker image accordingly, if you know Dockerfile format).
+
 Create an `.env` file at the root of the project with following contents:
 
 ```bash
-RACE_MAP_PATH=/catkin_ws/src/f1tenth_gym_ros/maps/SILVERSTONE.yaml
+RACE_MAP_PATH=/catkin_ws/src/f1tenth_gym_ros/maps/SOCHI.yaml
 RACE_MAP_IMG_EXT=.png
 F1TENTH_AGENT_NAME=a1
 F1TENTH_AGENT_IMAGE=a1
 RIDERS_CHALLENGE_ID=47
 RIDERS_API_HOST=https://api.riders.ai
-RIDERS_F1TENTH_HOST=https://f1tenth.riders.ai
 ```
+
+**NOTE:** If you're on Linux, change `ROS_MASTER_URI=http://host.docker.internal:11311` lines in `docker-compose.yml` with `ROS_MASTER_URI=http://172.17.0.1:11311`. Otherwise your separate Docker instances won't be able to find each other.
 
 Then, from the root of the project, build your submission:
 
@@ -157,7 +160,7 @@ docker-compose build agent
 
 The submission platform uses ROS to run the cars. Your car should race almost exactly the same in ROS as it did in the environment used in `Developing your Driver`, but it is a good idea to double-check sometimes by using ROS locally. This section will show you how to test your submission (if you want to) before you upload it.
 
-Note: choose between `SILVERSTONE.yaml` and `SILVERSTONE_OBS.yaml` in the `.env` file shown above to choose which map to test on (this will not have an effect on what map is used when you submit)
+Note: choose between `SOCHI.yaml` and `SOCHI_OBS.yaml` in the `.env` file shown above to choose which map to test on (this will not have an effect on what map is used when you submit)
 
 Start ROSCore & F1Tenth ROS Bridge:
 
