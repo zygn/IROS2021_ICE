@@ -6,9 +6,14 @@ import csv
 from matplotlib import pyplot as plt
 from argparse import Namespace
 
-# from planner.legacy.odg_pf import ODGPF
-from planner.fgm_stech_conv import FGM as FGM_CONV
-from planner.pp import PP 
+from planner.fgm_conv import FGM_CONV
+from planner.fgm_gnu import FGM_GNU
+from planner.fgm_gnu_conv import FGM_GNU_CONV
+from planner.fgm_pp_v1 import FGM_PP_V1
+from planner.fgm_pp_v2 import FGM_PP_V2
+from planner.fgm_stech import FGM_STECH
+from planner.fgm_stech_conv import FGM_STECH_CONV
+from planner.pp import PP
 
 if __name__ == '__main__':
 
@@ -28,11 +33,13 @@ if __name__ == '__main__':
     if conf.debug['gui_render']:
         env.render()
 
-    # planner = FGM_GNU(conf)
-    # planner = GRP(conf)
-    # planner = ODGPF(conf)
-    # planner = ODGGNU(conf)
     # planner = FGM_CONV(conf)
+    # planner = FGM_GNU(conf)
+    # planner = FGM_GNU_CONV(conf)
+    # planner = FGM_PP_V1(conf)
+    # planner = FGM_PP_V2(conf)
+    # planner = FGM_STECH(conf)
+    # planner = FGM_STECH_CONV(conf)
     planner = PP(conf)
 
     laptime = 0.0

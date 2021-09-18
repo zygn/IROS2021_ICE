@@ -6,12 +6,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 from argparse import Namespace
 
-# Import planner classes
-from planner.fgm_stech import FGM
-from planner.fgm_gnu import FGM_GNU
-# from planner.legacy.odg_pf import ODGPF
-# from planner.legacy.odg_gnu import ODGGNU
 from planner.fgm_conv import FGM_CONV
+from planner.fgm_gnu import FGM_GNU
+from planner.fgm_gnu_conv import FGM_GNU_CONV
+from planner.fgm_pp_v1 import FGM_PP_V1
+from planner.fgm_pp_v2 import FGM_PP_V2
+from planner.fgm_stech import FGM_STECH
+from planner.fgm_stech_conv import FGM_STECH_CONV
+from planner.pp import PP
 
 if __name__ == '__main__':
 
@@ -32,7 +34,7 @@ if __name__ == '__main__':
     if conf.debug['gui_render']:
         env.render()
 
-    for pln in [FGM, FGM_GNU, FGM_CONV]:
+    for pln in [FGM_CONV, FGM_GNU, FGM_GNU_CONV, FGM_PP_V1, FGM_PP_V2, FGM_STECH, FGM_STECH_CONV, PP]:
         planner = pln(conf)
         laptime = 0.0
         start = time.time()

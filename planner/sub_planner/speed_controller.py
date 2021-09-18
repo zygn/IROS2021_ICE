@@ -158,7 +158,6 @@ class SpeedController:
             # Braking_Distance_based Speed
             braking_speed = self.braking_distance()
             calculated_speed = self.speed_suspension(braking_speed)
-            calculated_speed = 0
         elif self.mode == 2:
             # Angle_Based Speed
             calculated_speed = self.angle_based()
@@ -166,4 +165,4 @@ class SpeedController:
             # Braking_distance + Road Direction based Speed
             calculated_speed = self.direction_speed()
 
-        return 0
+        return calculated_speed

@@ -318,7 +318,7 @@ class FGM_PP_V1:
         #self.obs = False
         if self.obs:
             steer = self.conv_fgm()
-            print("True")
+            # print("True")
         else:
             self.find_path()
             steer = self.setSteeringAngle()

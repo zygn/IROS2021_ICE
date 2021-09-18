@@ -5,3 +5,4 @@
 *.pyi
 log
 gym
+__pycache__

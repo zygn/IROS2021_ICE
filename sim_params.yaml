@@ -1,5 +1,5 @@
 # Environment Constants
-map_path: "map/SOCHI_OBS"
+map_path: "map/SOCHI"
 map_ext: '.png'
 
 p1:               # 1P starting pooint (solo, duo_1p)
@@ -17,15 +17,15 @@ p2:               # 2P starting pooint (duo_2p)
 # 1: Braking Distance Based
 # 2: Angle Based
 # 3: Braking dist + Angle Based
-speed_controller: 3
+speed_controller: 1
 
 
 # Debugging Settings
 debug:
-  gui_render: true        # rendering screen (true|false)
+  gui_render: false        # rendering screen (true|false)
   plotting: false          # print speed graph (true|false)
   logging: false           # save log (true|false)
-  collision_reset: true   # restart at collision (true|false)
+  collision_reset: false   # restart at collision (true|false)
   collision_interval: 2   # repeat time at collision (int)
 
 

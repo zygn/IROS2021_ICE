@@ -62,7 +62,7 @@ class FGM_STECH_CONV:
 
         self.current_speed = 1.0
         self.dmin_past = 0
-        self.controller = SpeedController(self.params)
+        self.controller = SC(self.params)
 
     
     def find_nearest_obs(self,obs):
@@ -127,7 +127,7 @@ class FGM_STECH_CONV:
             wps_point = [i[0],i[1],0]
             temp_waypoint.append(wps_point)
             self.wp_num += 1
-        print("wp_num",self.wp_num)
+        # print("wp_num",self.wp_num)
         return temp_waypoint
 
     def find_desired_wp(self):
