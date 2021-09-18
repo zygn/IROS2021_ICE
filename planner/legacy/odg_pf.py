@@ -1,9 +1,9 @@
 import numpy as np
-from .speed_controller import SpeedController as SC
+from planner.speed_controller import SpeedController as SC
 
-class ODGGNU:
+class ODGPF:
     def __init__(self, params):
-        self.params = params
+
         self.RACECAR_LENGTH = params.robot_length
         self.ROBOT_LENGTH = params.robot_length
         self.SPEED_MAX = params.max_speed
@@ -63,13 +63,30 @@ class ODGGNU:
         self.idx_temp = 0
         self.lap = 0
 
-        self.speed_controller = SC(self.params)  # determin_speed
+        self.speed_controller = SC(params)
 
     def getDistance(self, a, b):
         dx = a[0] - b[0]
         dy = a[1] - b[1]
 
         return np.sqrt(dx ** 2 + dy ** 2)
+
+    def find_nearest_obs(self, obs):
+        min_di = 0
+        min_dv = 0
+        if len(obs) <= 1:
+            min_di = 20
+            min_dv = 20
+        else:
+            min_di = self.getDistance(self.current_position, obs[0])
+            for i in range(len(obs)):
+                _dist = self.getDistance(self.current_position, obs[i])
+                if _dist <= min_di:
+                    min_di = _dist
+                    min_dv = self.getDistance(self.waypoints[self.wp_index_current], obs[i])
+
+        self.closest_obs_dist = min_di
+        self.closest_wp_dist = min_dv
 
     def transformPoint(self, origin, target):
         theta = self.PI / 2 - origin[2]
@@ -98,7 +115,6 @@ class ODGGNU:
 
     def get_waypoint(self):
         file_wps = np.genfromtxt(self.waypoint_real_path, delimiter=self.waypoint_delimeter, dtype='float')
-        # params.yaml 파일 수정 부탁드립니다... 제발...
 
         temp_waypoint = []
         for i in file_wps:
@@ -144,6 +160,8 @@ class ODGGNU:
 
         transformed_nearest_point = self.transformPoint(self.current_position, self.waypoints[idx_temp])
         self.desired_wp_rt = self.xyt2rt(transformed_nearest_point)
+
+        self.idx_temp = idx_temp
 
     def define_obstacles(self, scan):
         obstacles = []
@@ -207,12 +225,12 @@ class ODGGNU:
         for i in range(len(obstacles)):
             for j in range(self.detect_range_s, self.front_idx):
                 f_rep_list[j] += obstacles[i][2] * np.exp((-0.5) * (
-                        (((j - self.front_idx) * self.interval - obstacles[i][0] * self.interval) ** 2) / (
+                            (((j - self.front_idx) * self.interval - obstacles[i][0] * self.interval) ** 2) / (
                     obstacles[i][1]) ** 2))
 
             for k in range(self.detect_range_e, self.front_idx - 1, -1):
                 f_rep_list[k] += obstacles[i][2] * np.exp((-0.5) * (
-                        (((k - self.front_idx) * self.interval - obstacles[i][0] * self.interval) ** 2) / (
+                            (((k - self.front_idx) * self.interval - obstacles[i][0] * self.interval) ** 2) / (
                     obstacles[i][1]) ** 2))
 
         self.f_rep_list = f_rep_list
@@ -265,80 +283,79 @@ class ODGGNU:
 
         # LOOK : 0.5 + (0.3 * _vel)   (장애물 or 곡선 part) == 2
         # LOOK이 path_radius에 끼치는 영향
-        # -> LOOK이 클수록 스티어링 앵글을 덜꺾음
-        path_radius = self.LOOK ** 1.1 / (2 * np.sin(controlled_angle))
-        steer = np.arctan(self.ROBOT_LENGTH / path_radius)
+        # -> LOOK이 클수록 스티어링 앵글을 덜꺾음 
+        path_radius = self.LOOK ** 1.25 / (2 * np.sin(controlled_angle))
+        steering_angle = np.arctan(self.ROBOT_LENGTH / path_radius)
         # print("input",controlled_angle,"output",steering_angle)
 
-        speed = self.speed_controller.routine(self.scan_filtered, self.current_speed, steer, self.wp_index_current)
+        self.set_speed = self.speed_controller.routine(self.scan_filtered,self.current_speed,steering_angle,self.wp_index_current)  # determin_speed
 
-        if np.fabs(steer) > 0.5:
+        if np.fabs(self.steering_angle) > 0.5:
             # print("in")
-            if np.fabs(self.steering_angle_past - steer) > 0.5:
-                steer = self.steering_angle_past  # ((self.steering_angle+self.steering_angle_past*(0.5))/2)
+            if np.fabs(self.steering_angle_past - self.steering_angle) > 0.5:
+                steering_angle = self.steering_angle_past  # ((self.steering_angle+self.steering_angle_past*(0.5))/2)
                 # print("to")
 
         self.current_position_past = self.current_position[2]
-        self.steering_angle_past = steer
+        self.steering_angle_past = steering_angle
         self.f_rep_past_list = self.f_rep_list
 
-        return steer, speed
-
+        return steering_angle, self.set_speed
 
     def subCallback_scan(self, scan_data):
 
         self.scan_range = len(scan_data)
-        self.front_idx = int(self.scan_range / 2)
 
-        scan_origin = [0] * self.scan_range
+        self.front_idx = (int(self.scan_range / 2))
+
+        self.scan_origin = [0] * self.scan_range
         self.scan_filtered = [0] * self.scan_range
 
         for i in range(self.scan_range):
-            scan_origin[i] = scan_data[i]
+            self.scan_origin[i] = scan_data[i]
             self.scan_filtered[i] = scan_data[i]
 
         for i in range(self.scan_range):
-            if scan_origin[i] == 0:
+            if self.scan_origin[i] == 0:
                 cont = 0
                 sum = 0
                 for j in range(1, 21):
                     if i - j >= 0:
-                        if scan_origin[i - j] != 0:
+                        if self.scan_origin[i - j] != 0:
                             cont += 1
-                            sum += scan_origin[i - j]
+                            sum += self.scan_origin[i - j]
                     if i + j < self.scan_range:
-                        if scan_origin[i + j] != 0:
+                        if self.scan_origin[i + j] != 0:
                             cont += 1
-                            sum += scan_origin[i + j]
-                scan_origin[i] = sum / cont
+                            sum += self.scan_origin[i + j]
+                self.scan_origin[i] = sum / cont
                 self.scan_filtered[i] = sum / cont
 
         for i in range(self.scan_range - 1):
-            if scan_origin[i] * self.FILTER_SCALE < self.scan_filtered[i + 1]:
-                # print('filter')
-                unit_length = scan_origin[i] * self.interval
+            if self.scan_origin[i] * self.FILTER_SCALE < self.scan_filtered[i + 1]:
+                unit_length = self.scan_origin[i] * self.interval
                 filter_num = self.ROBOT_SCALE / unit_length
 
                 j = 1
                 while j < filter_num + 1:
                     if i + j < self.scan_range:
-                        if self.scan_filtered[i + j] > scan_origin[i]:
-                            self.scan_filtered[i + j] = scan_origin[i]
+                        if self.scan_filtered[i + j] > self.scan_origin[i]:
+                            self.scan_filtered[i + j] = self.scan_origin[i]
                         else:
                             break
                     else:
                         break
                     j += 1
 
-            elif self.scan_filtered[i] > scan_origin[i + 1] * self.FILTER_SCALE:
-                unit_length = scan_origin[i + 1] * self.interval
+            elif self.scan_filtered[i] > self.scan_origin[i + 1] * self.FILTER_SCALE:
+                unit_length = self.scan_origin[i + 1] * self.interval
                 filter_num = self.ROBOT_SCALE / unit_length
 
                 j = 0
                 while j < filter_num + 1:
                     if i - j > 0:
-                        if self.scan_filtered[i - j] > scan_origin[i + 1]:
-                            self.scan_filtered[i - j] = scan_origin[i + 1]
+                        if self.scan_filtered[i - j] > self.scan_origin[i + 1]:
+                            self.scan_filtered[i - j] = self.scan_origin[i + 1]
                         else:
                             break
                     else:
@@ -353,11 +370,12 @@ class ODGGNU:
         self.find_desired_wp()
 
         obstacles = self.define_obstacles(self.scan_filtered)
-
+        self.find_nearest_obs(obstacles)
         rep_list = self.rep_field(obstacles)
         att_list = self.att_field(self.desired_wp_rt)
         total_list = self.total_field(rep_list, att_list)
 
         desired_angle = total_list  # self.angle(total_list)
         steer, speed = self.main_drive(desired_angle)
+
         return speed, steer

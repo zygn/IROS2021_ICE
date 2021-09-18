@@ -9,8 +9,8 @@ from argparse import Namespace
 # Import planner classes
 from planner.fgm_stech import FGM
 from planner.fgm_gnu import FGM_GNU
-from planner.odg_pf import ODGPF
-from planner.odg_gnu import ODGGNU
+# from planner.legacy.odg_pf import ODGPF
+# from planner.legacy.odg_gnu import ODGGNU
 from planner.fgm_conv import FGM_CONV
 
 if __name__ == '__main__':
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     if conf.debug['gui_render']:
         env.render()
 
-    for pln in [FGM, FGM_GNU, FGM_CONV, ODGPF, ODGGNU]:
+    for pln in [FGM, FGM_GNU, FGM_CONV]:
         planner = pln(conf)
         laptime = 0.0
         start = time.time()
