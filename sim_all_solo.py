@@ -22,11 +22,11 @@ if __name__ == '__main__':
     conf = Namespace(**conf_dict)
 
     if conf.debug['logging']:
-        file_name = f'log/log_{time.strftime("%Y-%m-%d-%H-%M-%S")}.csv'
+        file_name = f'log/all_sc{conf.speed_controller}_{time.strftime("%Y-%m-%d-%H-%M-%S")}.csv'
         print(f"Result will logged at {file_name}")
         csvfile = open(file_name, 'w', newline='')
         wdr = csv.writer(csvfile)
-        wdr.writerow(["algorithm", "laptime", "finish", "collision", "collision_reset", "max_speed", "avg_speed"])
+        wdr.writerow(["algorithm", "laptime", "scores", "finish", "collision", "collision_reset", "max_speed", "avg_speed"])
 
     env = gym.make('f110_gym:f110-v0', map=conf.map_path, map_ext=conf.map_ext, num_agents=1)
     obs, step_reward, done, info = env.reset(np.array([[conf.p1['sx'], conf.p1['sy'], conf.p1['stheta']]]))
@@ -40,6 +40,7 @@ if __name__ == '__main__':
         start = time.time()
         done_i = 0
         collision = False
+        score = 0.0
 
         plot_interval = 0
         plot_list = []
@@ -60,7 +61,7 @@ if __name__ == '__main__':
             laptime += step_reward
 
             if conf.debug['gui_render']:
-                env.render(mode='human')
+                env.render(mode='human_fast')
 
             env_speed = obs['linear_vels_x'][0]
             pln_speed = speed
@@ -79,9 +80,9 @@ if __name__ == '__main__':
             if len(plot_list) >= 1000:
                 del(plot_list[0])
 
-            if done and not info['checkpoint_done'][0] and conf.debug['collision_reset']:
+            if done and not info['checkpoint_done'][0]:
                 collision = True
-                if done_i < conf.debug['collision_interval']:
+                if done_i < conf.debug['collision_interval'] and conf.debug['collision_reset']:
                     done_i += 1
                     real_elapsed_time = time.time() - start
                     max_speed = np.max(data_list)
@@ -107,14 +108,15 @@ if __name__ == '__main__':
         real_elapsed_time = time.time()-start
         max_speed = np.max(data_list)
         avg_speed = np.mean(data_list)
-
+        score = round(100/laptime, 4)
         if conf.debug['logging']:
-            wdr.writerow([planner.__class__.__name__, laptime, done, collision, done_i, max_speed, avg_speed])
+            wdr.writerow([planner.__class__.__name__, laptime, score, done, collision, done_i, max_speed, avg_speed])
 
         print(f"\tEnvironment Max Speed: {max_speed}")
         print(f"\tEnvironment Average Speed: {avg_speed}")
         print(f"\tSim elasped time: {laptime}")
         print(f"\tReal elasped time: {real_elapsed_time}")
+        print(f"\tSubmission Scores: {score}")
         print(f"\tCollision: {collision}\n\n")
 
         # 다음 플래너로 넘어가면서 env reset.
