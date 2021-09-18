@@ -8,6 +8,7 @@ from argparse import Namespace
 
 # from planner.legacy.odg_pf import ODGPF
 from planner.fgm_stech_conv import FGM as FGM_CONV
+from planner.pp import PP 
 
 if __name__ == '__main__':
 
@@ -31,7 +32,8 @@ if __name__ == '__main__':
     # planner = GRP(conf)
     # planner = ODGPF(conf)
     # planner = ODGGNU(conf)
-    planner = FGM_CONV(conf)
+    # planner = FGM_CONV(conf)
+    planner = PP(conf)
 
     laptime = 0.0
     start = time.time()
@@ -57,7 +59,7 @@ if __name__ == '__main__':
         collision = True if obs['collisions'][0] == 1. else False
 
         if conf.debug['gui_render']:
-            env.render(mode='human_fast')
+            env.render(mode='human')
 
         env_speed = obs['linear_vels_x'][0]
         pln_speed = speed
