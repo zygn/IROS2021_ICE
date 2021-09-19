@@ -91,7 +91,7 @@ class PP:
     def get_lookahead_desired(self):
         _vel = self.current_speed
         # self.lookahead_desired = 0.5 + (0.3 * _vel)
-        self.lookahead_desired = 0.5 + (0.3 * _vel)
+        self.lookahead_desired = 0.3 + (0.1 * _vel)
 
     def getDistance(self, a, b):
         dx = a[0] - b[0]

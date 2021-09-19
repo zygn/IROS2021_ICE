@@ -41,7 +41,7 @@ if __name__ == '__main__':
     # conf_temp.wpt_path = 'map/wp_SOCHI_v2.csv'
     
 
-    planner = [FGM_CONV(conf_temp), FGM_PP_V2(conf_temp)]
+    planner = [FGM_GNU_CONV(conf_temp), FGM_GNU_CONV(conf)]
 
     laptime = 0.0
     start = time.time()

@@ -2,7 +2,7 @@ import numpy as np
 from .sub_planner.speed_controller import SpeedController as SC
 
 class FGM_CONV:
-    BUBBLE_RADIUS = 160
+    BUBBLE_RADIUS = 200
     PREPROCESS_CONV_SIZE = 100  # PREPROCESS_consecutive_SIZE
     BEST_POINT_CONV_SIZE = 80
     MAX_LIDAR_DIST = 3000000
@@ -10,12 +10,8 @@ class FGM_CONV:
 
     def __init__(self, params):
         self.radians_per_elem = None
-        self.STRAIGHTS_SPEED = params.max_speed
-        self.CORNERS_SPEED = params.min_speed
         
         self.current_speed = 2.0
-        self.SPEED_MAX = params.max_speed
-        self.SPEED_MIN = params.min_speed
         self.GRAVITY_ACC = params.g
         self.MU = params.mu
         self.ROBOT_LENGTH = params.robot_length
