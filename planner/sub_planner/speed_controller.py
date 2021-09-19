@@ -21,7 +21,7 @@ class SpeedController:
         self.wps, self.wp_num = self.load_wps()
 
     def const_speed(self):
-        speed_straight = 8
+        speed_straight = 14
         speed_corner = 6
         straight_steer = np.pi / 18
 
@@ -38,11 +38,10 @@ class SpeedController:
         if np.isnan(current_distance):
             print("SCAN ERROR")
             current_distance = 1.0
-
-        if self.current_speed > 10:
-            current_distance -= self.current_speed * 0.7
-
-        braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - 2
+        #braking_a: -1
+        braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - 1
+        #braking_b: 1.1
+        braking_speed *= 1.1
 
         if braking_speed >= self.SPEED_MAX:
             braking_speed = self.SPEED_MAX
@@ -119,12 +118,15 @@ class SpeedController:
         braking_speed = self.braking_distance()
 
         if current_distance < 5:
-            direction_speed = self.angle_based(self.SPEED_MAX, self.SPEED_MIN)
+            if self.current_speed < 9:
+                direction_speed = self.angle_based()
+            else:
+                direction_speed = self.angle_based(self.SPEED_MAX,self.current_speed)
             # direction_speed = self.speed_suspension(angle_speed)
-        elif current_distance < 10 or np.fabs(road_direction) > self.PI/16 :
+        elif current_distance < 10:
             direction_speed = self.speed_suspension(braking_speed)
-            # direction_speed = float(-(3 / self.PI) * (braking_speed - self.current_speed) * np.fabs(road_direction) + braking_speed)
         else:
+            # direction_speed = float(-(3 / self.PI) * (braking_speed - self.current_speed) * np.fabs(road_direction) + braking_speed)
             direction_speed = self.speed_suspension(braking_speed)
             
         
@@ -136,9 +138,11 @@ class SpeedController:
             if self.current_speed <= 10:
                 final_speed = set_speed
             else:
+                #sus_a
                 final_speed = self.current_speed + np.fabs((set_speed - self.current_speed)*0.4)
         else:
-            final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * 0.2)
+            #sus_b
+            final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * 0.5)
 
         return final_speed
 
