@@ -22,7 +22,7 @@ speed_controller: 1
 
 # Debugging Settings
 debug:
-  gui_render: true        # rendering screen (true|false)
+  gui_render: false        # rendering screen (true|false)
   plotting: false          # print speed graph (true|false)
   logging: true          # save log (true|false)
   collision_reset: false   # restart at collision (true|false)
@@ -58,5 +58,9 @@ odg:
   threshold: 2.0
   filter_scale: 1.1
 
+braking_a: -1
+braking_b: 1.1
+sus_a: 0.4
+sus_b: 0.5
 
 

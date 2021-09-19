@@ -18,6 +18,11 @@ class SpeedController:
         self.steering_angle = 0.0
         self.current_idx = 0
 
+        self.braking_a = params.braking_a
+        self.braking_b = params.braking_b
+        self.sus_a = params.sus_a
+        self.sus_b = params.sus_b
+
         self.wps, self.wp_num = self.load_wps()
 
     def const_speed(self):
@@ -39,9 +44,9 @@ class SpeedController:
             print("SCAN ERROR")
             current_distance = 1.0
         #braking_a: -1
-        braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - 1
+        braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - self.braking_a
         #braking_b: 1.1
-        braking_speed *= 1.1
+        braking_speed *= self.braking_b
 
         if braking_speed >= self.SPEED_MAX:
             braking_speed = self.SPEED_MAX
@@ -139,10 +144,10 @@ class SpeedController:
                 final_speed = set_speed
             else:
                 #sus_a
-                final_speed = self.current_speed + np.fabs((set_speed - self.current_speed)*0.4)
+                final_speed = self.current_speed + np.fabs((set_speed - self.current_speed)* self.sus_a)
         else:
             #sus_b
-            final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * 0.5)
+            final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * self.sus_b)
 
         return final_speed
 
