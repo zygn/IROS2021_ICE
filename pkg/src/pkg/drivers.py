@@ -1,256 +1,553 @@
 import numpy as np
 
 
-class GapFollower:
-    BUBBLE_RADIUS = 160
-    PREPROCESS_CONV_SIZE = 3
-    BEST_POINT_CONV_SIZE = 80
-    MAX_LIDAR_DIST = 3000000
-    STRAIGHTS_SPEED = 8.0
-    CORNERS_SPEED = 5.0
-    STRAIGHTS_STEERING_ANGLE = np.pi / 18  # 10 degrees
-
+class SpeedController:
     def __init__(self):
-        # used when calculating the angles of the LiDAR data
-        self.radians_per_elem = None
 
-    def preprocess_lidar(self, ranges):
-        """ Preprocess the LiDAR scan array. Expert implementation includes:
-            1.Setting each value to the mean over some window
-            2.Rejecting high values (eg. > 3m)
-        """
-        self.radians_per_elem = (2 * np.pi) / len(ranges)
-        # we won't use the LiDAR data from directly behind us
-        proc_ranges = np.array(ranges[135:-135])
-        # sets each value to the mean over a given window
-        proc_ranges = np.convolve(proc_ranges, np.ones(self.PREPROCESS_CONV_SIZE), 'same') / self.PREPROCESS_CONV_SIZE
-        proc_ranges = np.clip(proc_ranges, 0, self.MAX_LIDAR_DIST)
-        return proc_ranges
+        self.mode = 3
 
-    def find_max_gap(self, free_space_ranges):
-        """ Return the start index & end index of the max gap in free_space_ranges
-            free_space_ranges: list of LiDAR data which contains a 'bubble' of zeros
-        """
-        # mask the bubble
-        masked = np.ma.masked_where(free_space_ranges == 0, free_space_ranges)
-        # get a slice for each contigous sequence of non-bubble data
-        slices = np.ma.notmasked_contiguous(masked)
-        max_len = slices[0].stop - slices[0].start
-        chosen_slice = slices[0]
-        # I think we will only ever have a maximum of 2 slices but will handle an
-        # indefinitely sized list for portablility
-        for sl in slices[1:]:
-            sl_len = sl.stop - sl.start
-            if sl_len > max_len:
-                max_len = sl_len
-                chosen_slice = sl
-        return chosen_slice.start, chosen_slice.stop
+        self.MU = 0.523
+        self.GRAVITY_ACC = 9.81
+        self.PI = 3.141592
+        self.WHEEL_BASE = 0.3302
+        self.SPEED_MAX = 15.0
+        self.SPEED_MIN = 5.0
 
-    def find_best_point(self, start_i, end_i, ranges):
-        """Start_i & end_i are start and end indices of max-gap range, respectively
-        Return index of best point in ranges
-        Naive: Choose the furthest point within ranges and go there
-        """
-        # do a sliding window average over the data in the max gap, this will
-        # help the car to avoid hitting corners
-        averaged_max_gap = np.convolve(ranges[start_i:end_i], np.ones(self.BEST_POINT_CONV_SIZE),
+        self.scan = []
+        self.current_speed = 5.0
+        self.steering_angle = 0.0
+        self.current_idx = 0
+
+        self.braking_a = 0.0
+        self.braking_b = 1.0
+        self.sus_a = 0.35
+        self.sus_b = 0.55
+
+        self.wpt_path = 'pkg/SOCHI_for_pp.csv'
+        self.wpt_delimeter = ','
+
+        self.wps, self.wp_num = self.load_wps()
+
+    def const_speed(self):
+        speed_straight = 14
+        speed_corner = 6
+        straight_steer = np.pi / 18
+
+        if np.abs(self.steering_angle) > straight_steer:
+            const_speed = speed_corner
+        else:
+            const_speed = speed_straight
+
+        return const_speed
+
+    def braking_distance(self):
+        current_distance = np.fabs(np.average(self.scan[499:580]))
+
+        if np.isnan(current_distance):
+            print("SCAN ERROR")
+            current_distance = 1.0
+        # braking_a: -1
+        braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - self.braking_a
+        # braking_b: 1.1
+        braking_speed *= self.braking_b
+
+        if braking_speed >= self.SPEED_MAX:
+            braking_speed = self.SPEED_MAX
+
+        return braking_speed
+
+    def angle_based(self, max_speed=8.0, min_speed=4.0):
+        if np.fabs(self.steering_angle) > self.PI / 8:
+            angular_speed = min_speed
+        else:
+            angular_speed = float(-(3 / self.PI) * (max_speed - min_speed) * np.fabs(self.steering_angle) + max_speed)
+
+        return angular_speed
+
+    # Road Direction Based Speed Control
+    def load_wps(self):
+        wpt_path = self.wpt_path
+        wpt_delimiter = self.wpt_delimeter
+
+        file_wps = np.genfromtxt(wpt_path, delimiter=wpt_delimiter, dtype='float')
+
+        temp_waypoint = []
+        wp_num = 0
+        for i in file_wps:
+            wps_point = [i[0], i[1], 0]
+            temp_waypoint.append(wps_point)
+            wp_num += 1
+
+        return temp_waypoint, wp_num
+
+    def get_distance(self, origin, target):
+        _dx = origin[0] - target[0]
+        _dy = origin[1] - target[1]
+
+        _res = np.sqrt(_dx ** 2 + _dy ** 2)
+
+        return _res
+
+    def find_next_target_wp(self):
+        look_const = 2.0
+
+        current_idx = self.current_idx
+        wp_target = self.current_idx + 1
+
+        temp_distance = 0
+        while True:
+            if wp_target >= self.wp_num - 1:
+                wp_target = 0
+
+            temp_distance = self.get_distance(self.wps[wp_target], self.wps[current_idx])
+
+            if temp_distance > look_const: break
+            wp_target += 1
+
+        return wp_target
+
+    def find_road_direction(self):
+        current_point = self.wps[self.current_idx]
+        next_idx = self.find_next_target_wp()
+        target_point = self.wps[next_idx]
+
+        dx = current_point[0] - target_point[0]
+        dy = current_point[1] - target_point[1]
+
+        road_direction = np.arctan2(dy, dx)
+
+        return road_direction
+
+    def direction_speed(self):
+        current_distance = np.fabs(np.average(self.scan[499:580]))
+        direction_speed = 0
+        road_direction = np.fabs(self.find_road_direction())
+
+        braking_speed = self.braking_distance()
+
+        if current_distance < 5:
+            if self.current_speed < 9:
+                direction_speed = self.angle_based()
+            else:
+                direction_speed = self.angle_based(self.SPEED_MAX, self.current_speed)
+            # direction_speed = self.speed_suspension(angle_speed)
+        elif current_distance < 10:
+            direction_speed = self.speed_suspension(braking_speed)
+        else:
+            # direction_speed = float(-(3 / self.PI) * (braking_speed - self.current_speed) * np.fabs(road_direction) + braking_speed)
+            direction_speed = self.speed_suspension(braking_speed)
+
+        return direction_speed
+
+    def speed_suspension(self, set_speed):
+        final_speed = 0
+        if self.current_speed <= set_speed:
+            if self.current_speed <= 10:
+                final_speed = set_speed
+            else:
+                # sus_a
+                final_speed = self.current_speed + np.fabs((set_speed - self.current_speed) * self.sus_a)
+        else:
+            # sus_b
+            final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * self.sus_b)
+
+        return final_speed
+
+    def routine(self, scan, speed, steer, idx):
+        calculated_speed = 0
+
+        self.scan = scan
+        self.current_speed = speed
+        self.steering_angle = steer
+        self.current_idx = idx
+
+        if self.mode == 0:
+            # Const Speed
+            calculated_speed = self.const_speed()
+        elif self.mode == 1:
+            # Braking_Distance_based Speed
+            braking_speed = self.braking_distance()
+            calculated_speed = self.speed_suspension(braking_speed)
+        elif self.mode == 2:
+            # Angle_Based Speed
+            calculated_speed = self.angle_based()
+        elif self.mode == 3:
+            # Braking_distance + Road Direction based Speed
+            calculated_speed = self.direction_speed()
+
+        return calculated_speed
+
+class FGM_GNU_CONV:
+    def __init__(self):
+
+        self.RACECAR_LENGTH = 0.3302
+        self.ROBOT_LENGTH = 0.3302
+        self.SPEED_MAX = 15.0
+        self.SPEED_MIN = 5.0
+
+        self.MU = 0.523
+        self.GRAVITY_ACC = 9.81
+        self.PI = 3.141592
+        self.ROBOT_SCALE = 0.2032
+
+        self.LOOK = 2.0
+        self.THRESHOLD = 6.0
+        self.GAP_SIZE = 1
+        self.FILTER_SCALE = 1.1
+        self.GAP_THETA_GAIN = 20.0
+        self.REF_THETA_GAIN = 1.5
+
+        self.BEST_POINT_CONV_SIZE = 80
+
+        self.waypoint_real_path = 'pkg/SOCHI_for_pp.csv'
+        self.waypoint_delimeter = ','
+
+        self.scan_range = 0
+        self.desired_gap = 0
+        self.speed_gain = 0
+        self.steering_gain = 0
+        self.gain_cont = 0
+        self.speed_cont = 0
+        self.desired_wp_rt = [0, 0]
+
+        self.speed_up = 0
+
+        self.wp_num = 1
+        self.waypoints = self.get_waypoint()
+        self.wp_index_current = 0
+        self.current_position = [0] * 3
+        self.nearest_distance = 0
+
+        self.max_angle = 0
+        self.wp_angle = 0
+        self.detect_range_s = 299
+        self.detect_range_e = 779
+        self.gaps = []
+        self.for_gap = [0, 0, 0]
+        self.for_point = 0
+
+        self.interval = 0.00435  # 1도 = 0.0175라디안
+
+        self.front_idx = 0
+        self.theta_for = self.PI / 3
+        self.gap_cont = 0
+
+        self.current_speed = 5.0
+        self.dmin_past = 0
+        self.lap = 0
+
+        self.closest_wp_dist = 0
+        self.closest_obs_dist = 0
+
+        self.speed_control = SpeedController()
+
+    def find_nearest_obs(self, obs):
+        min_di = 0
+        min_dv = 0
+        if len(obs) <= 1:
+            min_di = 20
+            min_dv = 20
+        else:
+            min_di = self.getDistance(self.current_position, obs[0])
+            for i in range(len(obs)):
+                _dist = self.getDistance(self.current_position, obs[i])
+                if _dist <= min_di:
+                    min_di = _dist
+                    min_dv = self.getDistance(self.waypoints[self.wp_index_current], obs[i])
+
+        self.closest_obs_dist = min_di
+        self.closest_wp_dist = min_dv
+
+    def getDistance(self, a, b):
+        dx = a[0] - b[0]
+        dy = a[1] - b[1]
+
+        return np.sqrt(dx ** 2 + dy ** 2)
+
+    def transformPoint(self, origin, target):
+        theta = self.PI / 2 - origin[2]
+
+        dx = target[0] - origin[0]
+        dy = target[1] - origin[1]
+        dtheta = target[2] + theta
+
+        tf_point_x = dx * np.cos(theta) - dy * np.sin(theta)
+        tf_point_y = dx * np.sin(theta) + dy * np.cos(theta)
+        tf_point_theta = dtheta
+        tf_point = [tf_point_x, tf_point_y, tf_point_theta]
+
+        return tf_point
+
+    def xyt2rt(self, origin):
+        rtpoint = []
+
+        x = origin[0]
+        y = origin[1]
+
+        # rtpoint[0] = r, [1] = theta
+        rtpoint.append(np.sqrt(x * x + y * y))
+        rtpoint.append(np.arctan2(y, x) - (self.PI / 2))
+
+        return rtpoint
+
+    def get_waypoint(self):
+        file_wps = np.genfromtxt(self.waypoint_real_path, delimiter=self.waypoint_delimeter, dtype='float')
+
+        temp_waypoint = []
+        for i in file_wps:
+            wps_point = [i[0], i[1], 0]
+            temp_waypoint.append(wps_point)
+            self.wp_num += 1
+        return temp_waypoint
+
+    def find_desired_wp(self):
+        wp_index_temp = self.wp_index_current
+        self.nearest_distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+
+        while True:
+            wp_index_temp += 1
+
+            if wp_index_temp >= self.wp_num - 1:
+                wp_index_temp = 0
+
+            temp_distance = self.getDistance(self.waypoints[wp_index_temp], self.current_position)
+
+            if temp_distance < self.nearest_distance:
+                self.nearest_distance = temp_distance
+                self.wp_index_current = wp_index_temp
+            elif (temp_distance > (self.nearest_distance + self.LOOK * 1.2)) or (
+                    wp_index_temp == self.wp_index_current):
+                break
+
+        temp_distance = 0
+        idx_temp = self.wp_index_current
+        while True:
+            if idx_temp >= self.wp_num - 1:
+                idx_temp = 0
+            temp_distance = self.getDistance(self.waypoints[idx_temp], self.current_position)
+            if temp_distance > self.LOOK: break
+            idx_temp += 1
+
+        transformed_nearest_point = self.transformPoint(self.current_position, self.waypoints[idx_temp])
+        self.desired_wp_rt = self.xyt2rt(transformed_nearest_point)
+
+    def subCallback_scan(self, scan_data):
+
+        self.scan_range = len(scan_data)
+
+        self.front_idx = (int(self.scan_range / 2))
+
+        self.scan_origin = [0] * self.scan_range
+        self.scan_filtered = [0] * self.scan_range
+
+        for i in range(self.scan_range):
+            self.scan_origin[i] = scan_data[i]
+            self.scan_filtered[i] = scan_data[i]
+
+        for i in range(self.scan_range - 1):
+            if self.scan_origin[i] * self.FILTER_SCALE < self.scan_filtered[i + 1]:
+                unit_length = self.scan_origin[i] * self.interval
+                filter_num = self.ROBOT_SCALE / unit_length
+
+                j = 1
+                while j < filter_num + 1:
+                    if i + j < self.scan_range:
+                        if self.scan_filtered[i + j] > self.scan_origin[i]:
+                            self.scan_filtered[i + j] = self.scan_origin[i]
+                        else:
+                            break
+                    else:
+                        break
+                    j += 1
+
+            elif self.scan_filtered[i] > self.scan_origin[i + 1] * self.FILTER_SCALE:
+                unit_length = self.scan_origin[i + 1] * self.interval
+                filter_num = self.ROBOT_SCALE / unit_length
+
+                j = 0
+                while j < filter_num + 1:
+                    if i - j > 0:
+                        if self.scan_filtered[i - j] > self.scan_origin[i + 1]:
+                            self.scan_filtered[i - j] = self.scan_origin[i + 1]
+                        else:
+                            break
+                    else:
+                        break
+                    j += 1
+
+        return self.scan_filtered
+
+    def find_gap(self, scan):
+        self.gaps = []
+
+        i = 0
+
+        while i < self.scan_range - self.GAP_SIZE:
+
+            if scan[i] > self.THRESHOLD:
+                start_idx_temp = i
+                end_idx_temp = i
+                # max_temp = scan[i]
+                # max_idx_temp = i
+
+                while ((scan[i] > self.THRESHOLD) and (i + 1 < self.scan_range)):
+                    i += 1
+                    # if scan[i] > max_temp:
+                    #     max_temp = scan[i]
+                    #     max_idx_temp = i
+                if scan[i] > self.THRESHOLD:
+                    i += 1
+                end_idx_temp = i
+
+                gap_temp = [0] * 3
+                gap_temp[0] = start_idx_temp
+                gap_temp[1] = end_idx_temp
+                # gap_temp[2] = max_idx_temp
+                self.gaps.append(gap_temp)
+            i += 1
+
+    def for_find_gap(self, scan):
+        self.for_point = (int)(self.theta_for / self.interval)
+        # [0] = start_idx, [1] = end_idx
+
+        start_idx_temp = (self.front_idx) - self.for_point
+        end_idx_temp = (self.front_idx) + self.for_point
+
+        max_idx_temp = start_idx_temp
+        max_temp = scan[start_idx_temp]
+
+        for i in range(start_idx_temp, end_idx_temp):
+            if max_temp < scan[i]:
+                max_temp = scan[i]
+                max_idx_temp = i
+        # [0] = start_idx, [1] = end_idx, [2] = max_idx_temp
+        self.for_gap[0] = start_idx_temp
+        self.for_gap[1] = end_idx_temp
+        self.for_gap[2] = max_idx_temp
+
+    # ref - [0] = r, [1] = theta
+    def find_best_gap(self, ref):
+        num = len(self.gaps)
+
+        if num == 0:
+            return self.for_gap
+        else:
+
+            step = (int(ref[1] / self.interval))
+
+            ref_idx = self.front_idx + step
+
+            gap_idx = 0
+
+            if self.gaps[0][0] > ref_idx:
+                distance = self.gaps[0][0] - ref_idx
+            elif self.gaps[0][1] < ref_idx:
+                distance = ref_idx - self.gaps[0][1]
+            else:
+                distance = 0
+                gap_idx = 0
+
+            i = 1
+            while (i < num):
+                if self.gaps[i][0] > ref_idx:
+                    temp_distance = self.gaps[i][0] - ref_idx
+                    if temp_distance < distance:
+                        distance = temp_distance
+                        gap_idx = i
+                elif self.gaps[i][1] < ref_idx:
+                    temp_distance = ref_idx - self.gaps[i][1]
+                    if temp_distance < distance:
+                        distance = temp_distance
+                        gap_idx = i
+
+                else:
+                    temp_distance = 0
+                    distance = 0
+                    gap_idx = i
+                    break
+
+                i += 1
+            # 가장 작은 distance를 갖는 gap만 return
+            return self.gaps[gap_idx]
+
+    def find_best_point(self, best_gap):
+        averaged_max_gap = np.convolve(self.scan_filtered[best_gap[0]:best_gap[1]], np.ones(self.BEST_POINT_CONV_SIZE),
                                        'same') / self.BEST_POINT_CONV_SIZE
-        return averaged_max_gap.argmax() + start_i
+        return averaged_max_gap.argmax() + best_gap[0]
 
-    def get_angle(self, range_index, range_len):
-        """ Get the angle of a particular element in the LiDAR data and transform it into an appropriate steering angle
+    def main_drive(self, max_gap):
+        self.max_angle = (max_gap - self.front_idx) * self.interval  # (goal[2] - self.front_idx) * self.interval
+        self.wp_angle = self.desired_wp_rt[1]
+
+        # range_min_values = [0]*10
+        temp_avg = 0
+        dmin = 0
+        for i in range(10):
+            dmin += self.scan_filtered[i]
+
+        dmin /= 10
+
+        i = 0
+
+        while i < self.scan_range - 7:
+            j = 0
+            while j < 10:
+                if i + j > 1079:
+                    temp_avg += 0
+                else:
+                    temp_avg += self.scan_filtered[i + j]
+                j += 1
+
+            temp_avg /= 10
+
+            if dmin > temp_avg:
+                if temp_avg == 0:
+                    temp_avg = dmin
+                dmin = temp_avg
+            temp_avg = 0
+            i += 3
+
+        if dmin == 0:
+            dmin = self.dmin_past
+
+        controlled_angle = ((self.GAP_THETA_GAIN / dmin) * self.max_angle + self.REF_THETA_GAIN * self.wp_angle) / (
+                self.GAP_THETA_GAIN / dmin + self.REF_THETA_GAIN)
+        distance = 1.0
+        # path_radius = 경로 반지름
+        path_radius = distance / (2 * np.sin(controlled_angle))
+        #
+        steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
+
+        steer = steering_angle
+        speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
+                                           self.wp_index_current)
+        self.dmin_past = dmin
+
+        return steer, speed
+
+    def driving(self, scan_data, odom_data):
         """
-        lidar_angle = (range_index - (range_len / 2)) * self.radians_per_elem
-        steering_angle = lidar_angle / 2
-        return steering_angle
 
-    def process_lidar(self, ranges):
-        """ Process each LiDAR scan as per the Follow Gap algorithm & publish an AckermannDriveStamped Message
+        :param scan_data: scan data
+        :param odom_data: odom data
+        :return: steer, speed
         """
-        proc_ranges = self.preprocess_lidar(ranges)
-        # Find closest point to LiDAR
-        closest = proc_ranges.argmin()
+        scan_data = self.subCallback_scan(scan_data)
+        self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
+        self.current_speed = odom_data['linear_vel']
+        self.find_desired_wp()
+        self.find_gap(scan_data)
+        self.for_find_gap(scan_data)
 
-        # Eliminate all points inside 'bubble' (set them to zero)
-        min_index = closest - self.BUBBLE_RADIUS
-        max_index = closest + self.BUBBLE_RADIUS
-        if min_index < 0: min_index = 0
-        if max_index >= len(proc_ranges): max_index = len(proc_ranges) - 1
-        proc_ranges[min_index:max_index] = 0
+        self.desired_gap = self.find_best_gap(self.desired_wp_rt)
+        self.best_point = self.find_best_point(self.desired_gap)
 
-        # Find max length gap
-        gap_start, gap_end = self.find_max_gap(proc_ranges)
+        steer, speed = self.main_drive(self.best_point)
 
-        # Find the best point in the gap
-        best = self.find_best_point(gap_start, gap_end, proc_ranges)
+        return speed, steer
 
-        # Publish Drive message
-        steering_angle = self.get_angle(best, len(proc_ranges))
-        if abs(steering_angle) > self.STRAIGHTS_STEERING_ANGLE:
-            speed = self.CORNERS_SPEED
+    def process_observation(self, ranges, ego_odom, opp_odom):
+        if ego_odom:
+            return self.driving(ranges, ego_odom)
         else:
-            speed = self.STRAIGHTS_SPEED
-        print('Steering angle in degrees: {}'.format((steering_angle / (np.pi / 2)) * 90))
-        return speed, steering_angle
-
-
-# drives straight ahead at a speed of 5
-class SimpleDriver:
-
-    def process_lidar(self, ranges):
-        speed = 5.0
-        steering_angle = 0.0
-        return speed, steering_angle
-
-
-# drives toward the furthest point it sees
-class AnotherDriver:
-
-    def process_lidar(self, ranges):
-        # the number of LiDAR points
-        NUM_RANGES = len(ranges)
-        # angle between each LiDAR point
-        ANGLE_BETWEEN = 2 * np.pi / NUM_RANGES
-        # number of points in each quadrant
-        NUM_PER_QUADRANT = NUM_RANGES // 4
-
-        # the index of the furthest LiDAR point (ignoring the points behind the car)
-        max_idx = np.argmax(ranges[NUM_PER_QUADRANT:-NUM_PER_QUADRANT]) + NUM_PER_QUADRANT
-        # some math to get the steering angle to correspond to the chosen LiDAR point
-        steering_angle = max_idx * ANGLE_BETWEEN - (NUM_RANGES // 2) * ANGLE_BETWEEN
-        speed = 5.0
-
-        return speed, steering_angle
-
-import numpy as np
-
-
-class DisparityExtender:
-    
-    CAR_WIDTH = 0.31
-    # the min difference between adjacent LiDAR points for us to call them disparate
-    DIFFERENCE_THRESHOLD = 2.
-    SPEED = 5. 
-    # the extra safety room we plan for along walls (as a percentage of car_width/2)
-    SAFETY_PERCENTAGE = 300.
-
-    def preprocess_lidar(self, ranges):
-        """ Any preprocessing of the LiDAR data can be done in this function.
-            Possible Improvements: smoothing of outliers in the data and placing
-            a cap on the maximum distance a point can be.
-        """
-        # remove quadrant of LiDAR directly behind us
-        eighth = int(len(ranges)/8)
-        return np.array(ranges[eighth:-eighth])
-    
-     
-    def get_differences(self, ranges):
-        """ Gets the absolute difference between adjacent elements in
-            in the LiDAR data and returns them in an array.
-            Possible Improvements: replace for loop with numpy array arithmetic
-        """
-        differences = [0.] # set first element to 0
-        for i in range(1, len(ranges)):
-            differences.append(abs(ranges[i]-ranges[i-1]))
-        return differences
-    
-    def get_disparities(self, differences, threshold):
-        """ Gets the indexes of the LiDAR points that were greatly
-            different to their adjacent point.
-            Possible Improvements: replace for loop with numpy array arithmetic
-        """
-        disparities = []
-        for index, difference in enumerate(differences):
-            if difference > threshold:
-                disparities.append(index)
-        return disparities
-
-    def get_num_points_to_cover(self, dist, width):
-        """ Returns the number of LiDAR points that correspond to a width at
-            a given distance.
-            We calculate the angle that would span the width at this distance,
-            then convert this angle to the number of LiDAR points that
-            span this angle.
-            Current math for angle:
-                sin(angle/2) = (w/2)/d) = w/2d
-                angle/2 = sininv(w/2d)
-                angle = 2sininv(w/2d)
-                where w is the width to cover, and d is the distance to the close
-                point.
-            Possible Improvements: use a different method to calculate the angle
-        """
-        angle = 2*np.arcsin(width/(2*dist))
-        num_points = int(np.ceil(angle / self.radians_per_point))
-        return num_points
-
-    def cover_points(self, num_points, start_idx, cover_right, ranges):
-        """ 'covers' a number of LiDAR points with the distance of a closer
-            LiDAR point, to avoid us crashing with the corner of the car.
-            num_points: the number of points to cover
-            start_idx: the LiDAR point we are using as our distance
-            cover_right: True/False, decides whether we cover the points to
-                         right or to the left of start_idx
-            ranges: the LiDAR points
-
-            Possible improvements: reduce this function to fewer lines
-        """
-        new_dist = ranges[start_idx]
-        if cover_right:
-            for i in range(num_points):
-                next_idx = start_idx+1+i
-                if next_idx >= len(ranges): break
-                if ranges[next_idx] > new_dist:
-                    ranges[next_idx] = new_dist
-        else:
-            for i in range(num_points):
-                next_idx = start_idx-1-i
-                if next_idx < 0: break
-                if ranges[next_idx] > new_dist:
-                    ranges[next_idx] = new_dist
-        return ranges
-
-    def extend_disparities(self, disparities, ranges, car_width, extra_pct):
-        """ For each pair of points we have decided have a large difference
-            between them, we choose which side to cover (the opposite to
-            the closer point), call the cover function, and return the
-            resultant covered array.
-            Possible Improvements: reduce to fewer lines
-        """
-        width_to_cover = (car_width/2) * (1+extra_pct/100)
-        for index in disparities:
-            first_idx = index-1
-            points = ranges[first_idx:first_idx+2]
-            close_idx = first_idx+np.argmin(points)
-            far_idx = first_idx+np.argmax(points)
-            close_dist = ranges[close_idx]
-            num_points_to_cover = self.get_num_points_to_cover(close_dist,
-                    width_to_cover)
-            cover_right = close_idx < far_idx
-            ranges = self.cover_points(num_points_to_cover, close_idx,
-                cover_right, ranges)
-        return ranges
-            
-    def get_steering_angle(self, range_index, range_len):
-        """ Calculate the angle that corresponds to a given LiDAR point and
-            process it into a steering angle.
-            Possible improvements: smoothing of aggressive steering angles
-        """
-        lidar_angle = (range_index - (range_len/2)) * self.radians_per_point
-        steering_angle = np.clip(lidar_angle, np.radians(-90), np.radians(90))
-        return steering_angle
-
-    def process_lidar(self, ranges):
-        """ Run the disparity extender algorithm!
-            Possible improvements: varying the speed based on the
-            steering angle or the distance to the farthest point.
-        """
-        self.radians_per_point = (2*np.pi)/len(ranges)
-        proc_ranges = self.preprocess_lidar(ranges)
-        differences = self.get_differences(proc_ranges)
-        disparities = self.get_disparities(differences, self.DIFFERENCE_THRESHOLD)
-        proc_ranges = self.extend_disparities(disparities, proc_ranges,
-                self.CAR_WIDTH, self.SAFETY_PERCENTAGE)
-        steering_angle = self.get_steering_angle(proc_ranges.argmax(),
-                len(proc_ranges))
-        speed = self.SPEED
-        return speed, steering_angle
+            return self.driving(ranges, opp_odom)

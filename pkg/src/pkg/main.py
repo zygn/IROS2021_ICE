@@ -10,13 +10,25 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
 
 # import your drivers here
-from pkg.drivers import DisparityExtender
+from pkg.drivers import FGM_GNU_CONV
 
 # choose your drivers here (1-4)
-drivers = [DisparityExtender()]
+drivers = [FGM_GNU_CONV()]
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'
+
+
+def _pack_odom(obs, i):
+    keys = {
+        'poses_x': 'pose_x',
+        'poses_y': 'pose_y',
+        'poses_theta': 'pose_theta',
+        'linear_vels_x': 'linear_vel_x',
+        'linear_vels_y': 'linear_vel_y',
+        'ang_vels_z': 'angular_vel_z',
+    }
+    return {single: obs[multi][i] for multi, single in keys.items()}
 
 
 class GymRunner(object):
@@ -53,8 +65,21 @@ class GymRunner(object):
             actions = []
             futures = []
             with concurrent.futures.ThreadPoolExecutor() as executor:
+                odom_0, odom_1 = _pack_odom(obs, 0), None
+                if len(drivers) > 1:
+                    odom_1 = _pack_odom(obs, 1)
+
                 for i, driver in enumerate(drivers):
-                    futures.append(executor.submit(driver.process_lidar, obs['scans'][i]))
+                    if i == 0:
+                        ego_odom, opp_odom = odom_0, odom_1
+                    else:
+                        ego_odom, opp_odom = odom_1, odom_0
+                    scan = obs['scans'][i]
+                    if hasattr(driver, 'process_observation'):
+                        futures.append(executor.submit(driver.process_lidar, scan))
+                    elif hasattr(driver, 'process_lidar'):
+                        futures.append(executor.submit(driver.process_observation, ranges=scan, ego_odom=ego_odom, opp_odom=opp_odom))
+
             for future in futures:
                 speed, steer = future.result()
                 actions.append([steer, speed])
