@@ -14,3 +14,4 @@ docs/_build/
 venv/**/*
 challengeproject.tar
 .idea/
+log
