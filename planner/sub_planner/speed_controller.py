@@ -140,11 +140,7 @@ class SpeedController:
     def speed_suspension(self, set_speed):
         final_speed = 0
         if self.current_speed <= set_speed:
-            if self.current_speed <= 10:
-                final_speed = set_speed
-            else:
-                #sus_a
-                final_speed = self.current_speed + np.fabs((set_speed - self.current_speed)* self.sus_a)
+            final_speed = self.braking_distance()
         else:
             #sus_b
             final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * self.sus_b)
