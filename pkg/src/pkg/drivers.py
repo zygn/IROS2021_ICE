@@ -27,8 +27,6 @@ class SpeedController:
         self.steering_angle = 0.0
         self.current_idx = 0
 
-        self.wps, self.wp_num = self.load_wps()
-
     def const_speed(self):
         speed_straight = 14
         speed_corner = 6
@@ -64,60 +62,6 @@ class SpeedController:
             angular_speed = float(-(3 / self.PI) * (max_speed - min_speed) * np.fabs(self.steering_angle) + max_speed)
 
         return angular_speed
-
-    # Road Direction Based Speed Control
-    def load_wps(self):
-        wpt_path = self.wpt_path
-        wpt_delimiter = self.wpt_delimeter
-
-        file_wps = np.genfromtxt(wpt_path, delimiter=wpt_delimiter, dtype='float')
-
-        temp_waypoint = []
-        wp_num = 0
-        for i in file_wps:
-            wps_point = [i[0], i[1], 0]
-            temp_waypoint.append(wps_point)
-            wp_num += 1
-
-        return temp_waypoint, wp_num
-
-    def get_distance(self, origin, target):
-        _dx = origin[0] - target[0]
-        _dy = origin[1] - target[1]
-
-        _res = np.sqrt(_dx ** 2 + _dy ** 2)
-
-        return _res
-
-    def find_next_target_wp(self):
-        look_const = 2.0
-
-        current_idx = self.current_idx
-        wp_target = self.current_idx + 1
-
-        temp_distance = 0
-        while True:
-            if wp_target >= self.wp_num - 1:
-                wp_target = 0
-
-            temp_distance = self.get_distance(self.wps[wp_target], self.wps[current_idx])
-
-            if temp_distance > look_const: break
-            wp_target += 1
-
-        return wp_target
-
-    def find_road_direction(self):
-        current_point = self.wps[self.current_idx]
-        next_idx = self.find_next_target_wp()
-        target_point = self.wps[next_idx]
-
-        dx = current_point[0] - target_point[0]
-        dy = current_point[1] - target_point[1]
-
-        road_direction = np.arctan2(dy, dx)
-
-        return road_direction
 
     def direction_speed(self):
         current_distance = np.fabs(np.average(self.scan[499:580]))
@@ -269,7 +213,7 @@ class FGM_GNU_CONV:
         self.speed_control = SpeedController(self.params)
 
         # init finished
-        print("Initialization Success (Suck-C'ex)")
+        print("Initialization Suck-C'ex")
 
 
 
@@ -341,7 +285,6 @@ class FGM_GNU_CONV:
 
         abs_cord = [x,y]
         return abs_cord
-        
 
     def find_desired_wp(self):
         wp_index_temp = self.wp_index_current
@@ -573,7 +516,7 @@ class FGM_GNU_CONV:
 
         :param scan_data: scan data
         :param odom_data: odom data
-        :return: steer, speed
+        :return: speed, steer
         """
 
         scan_data = self.subCallback_scan(scan_data)
