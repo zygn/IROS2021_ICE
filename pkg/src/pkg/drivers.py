@@ -119,32 +119,36 @@ class SpeedController:
         return calculated_speed
 
 class FGM_GNU_CONV:
-    def __init__(self):
+    def __init__(self, params=None):
 
-        self.params = {
-            'racecar_length': 0.3302,
-            'robot_length': 0.3302,
-            'robot_scale': 0.2032,
-            'max_speed': 15.0,
-            'min_speed': 5.0,
-            'pi': 3.141592,
-            'mu': 0.523,
-            'g': 9.81,
-            'look': 2.0,
-            'threshold': 6.0,
-            'gap_size': 1,
-            'filter_scale': 1.1,
-            'gap_theta_gain': 20.0,
-            'ref_theta_gain': 1.5,
-            'best_point_conv_size': 80,
-            'sus_a': 0.3,
-            'sus_b': 0.511111,
-            'braking_a': 0.0,
-            'braking_b': 1.0,
-            'waypoint_delim': ',',
-            'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'      # for ROS ENVIRONMENT
-            # 'waypoint_path': '/pkg/SOCHI_for_pp.csv'                            # for Python main ENVIRONMENT
-        }
+        if params is None:  # This flag is for reinforcement, Default is None.
+            self.params = {
+                'racecar_length': 0.3302,
+                'robot_length': 0.3302,
+                'robot_scale': 0.2032,
+                'max_speed': 15.0,
+                'min_speed': 5.0,
+                'pi': 3.141592,
+                'mu': 0.523,
+                'g': 9.81,
+                'look': 2.0,
+                'threshold': 6.0,
+                'gap_size': 1,
+                'filter_scale': 1.1,
+                'gap_theta_gain': 20.0,
+                'ref_theta_gain': 1.5,
+                'best_point_conv_size': 80,
+                'sus_a': 0.3,
+                'sus_b': 0.511111,
+                'braking_a': 0.0,
+                'braking_b': 1.0,
+                'waypoint_delim': ',',
+                'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'      # for ROS ENVIRONMENT
+                # 'waypoint_path': '/pkg/SOCHI_for_pp.csv'                            # for Python main ENVIRONMENT
+            }
+        else:
+            self.params = params
+
         self.RACECAR_LENGTH = self.params['racecar_length']
         self.ROBOT_LENGTH = self.params['robot_length']
         self.SPEED_MAX = self.params['max_speed']
@@ -209,7 +213,7 @@ class FGM_GNU_CONV:
         self.speed_control = SpeedController(self.params)
 
         # init finished
-        print("Initialization Suck-C'ex")
+        # print("Initialization Suck-C'ex")
 
 
 
