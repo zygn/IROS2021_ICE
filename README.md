@@ -33,7 +33,7 @@ To develop your driver you can work in the folder [pkg/src/pkg](./pkg/src/pkg).
 
 ### Structure of a Driver
 
-Let's take a look at the most basic Driver, which is in the file [drivers.py](pkg/src/pkg/drivers.py.old)
+Let's take a look at the most basic Driver, which is in the file [drivers.py](./pkg/src/pkg/drivers.py)
 
 ```python
 class SimpleDriver:    
@@ -117,7 +117,7 @@ RACETRACK = 'SOCHI_OBS'
 
 ### Baseline Solution
 
-The baseline solution for this competition is the DisparityExtender, which is included in the [drivers.py](pkg/src/pkg/drivers.py.old) file. This Driver is an implementation of the [Disparity Extender Algorithm](https://www.nathanotterness.com/2019/04/the-disparity-extender-algorithm-and.html) which has proved successful in previous competitions.
+The baseline solution for this competition is the DisparityExtender, which is included in the [drivers.py](./pkg/src/pkg/drivers.py) file. This Driver is an implementation of the [Disparity Extender Algorithm](https://www.nathanotterness.com/2019/04/the-disparity-extender-algorithm-and.html) which has proved successful in previous competitions.
 
 This baseline should already pass the obstacle avoidance track as-is but it's not very fast! Speeding it up will introduce new challenges which can be handled with some thinking. Each function in this baseline also has tips on ways it can be improved.
 

@@ -10,10 +10,10 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
 
 # import your drivers here
-from pkg.drivers import FGM_GNU_CONV
+from pkg.drivers import DisparityExtender
 
 # choose your drivers here (1-4)
-drivers = [FGM_GNU_CONV()]
+drivers = [DisparityExtender()]
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'
@@ -76,9 +76,9 @@ class GymRunner(object):
                         ego_odom, opp_odom = odom_1, odom_0
                     scan = obs['scans'][i]
                     if hasattr(driver, 'process_observation'):
-                        futures.append(executor.submit(driver.process_lidar, scan))
+                        futures.append(executor.submit(driver.process_observation, ranges=scan, ego_odom=ego_odom))
                     elif hasattr(driver, 'process_lidar'):
-                        futures.append(executor.submit(driver.process_observation, ranges=scan, ego_odom=ego_odom, opp_odom=opp_odom))
+                        futures.append(executor.submit(driver.process_lidar, scan))
 
             for future in futures:
                 speed, steer = future.result()

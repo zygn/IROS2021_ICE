@@ -4,13 +4,12 @@ import numpy as np
 class SpeedController:
     def __init__(self):
 
-        self.mode = 3
-
+        self.mode = 1
         self.MU = 0.523
         self.GRAVITY_ACC = 9.81
         self.PI = 3.141592
         self.WHEEL_BASE = 0.3302
-        self.SPEED_MAX = 15.0
+        self.SPEED_MAX = 15.0 # 15.0
         self.SPEED_MIN = 5.0
 
         self.scan = []
@@ -18,12 +17,13 @@ class SpeedController:
         self.steering_angle = 0.0
         self.current_idx = 0
 
-        self.braking_a = 0.0
+        self.braking_a = 0.0 # 0.0 
         self.braking_b = 1.0
-        self.sus_a = 0.35
-        self.sus_b = 0.55
+        self.sus_a = 0.3 # 0.3
+        self.sus_b = 0.511111
 
-        self.wpt_path = 'pkg/SOCHI_for_pp.csv'
+        # self.wpt_path = '/pkg/SOCHI_for_pp.csv'
+        self.wpt_path = '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'
         self.wpt_delimeter = ','
 
         self.wps, self.wp_num = self.load_wps()
@@ -199,7 +199,8 @@ class FGM_GNU_CONV:
 
         self.BEST_POINT_CONV_SIZE = 80
 
-        self.waypoint_real_path = 'pkg/SOCHI_for_pp.csv'
+        # self.waypoint_real_path = '/pkg/SOCHI_for_pp.csv'
+        self.waypoint_real_path = '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'
         self.waypoint_delimeter = ','
 
         self.scan_range = 0
@@ -239,7 +240,14 @@ class FGM_GNU_CONV:
         self.closest_wp_dist = 0
         self.closest_obs_dist = 0
 
+        self.scan_filtered_data = None 
+
         self.speed_control = SpeedController()
+
+        # init finished
+        print("Initialization Success (Suck-C'ex)")
+
+
 
     def find_nearest_obs(self, obs):
         min_di = 0
@@ -299,6 +307,17 @@ class FGM_GNU_CONV:
             temp_waypoint.append(wps_point)
             self.wp_num += 1
         return temp_waypoint
+    
+    def calc_abs_cord(self):
+        incre = 4.71239 / 1080
+        theta = (-180+idx) * incre
+
+        x = current_x + r * np.sin(theta)
+        y = current_y + r * np.cos(theta)
+
+        abs_cord = [x,y]
+        return abs_cord
+        
 
     def find_desired_wp(self):
         wp_index_temp = self.wp_index_current
@@ -525,16 +544,17 @@ class FGM_GNU_CONV:
 
         return steer, speed
 
-    def driving(self, scan_data, odom_data):
+    def _process_lidar(self, scan_data, odom_data):
         """
 
         :param scan_data: scan data
         :param odom_data: odom data
         :return: steer, speed
         """
+
         scan_data = self.subCallback_scan(scan_data)
-        self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
-        self.current_speed = odom_data['linear_vel']
+        self.current_position = [odom_data['pose_x'], odom_data['pose_y'], odom_data['pose_theta']]
+        self.current_speed = odom_data['linear_vel_x']
         self.find_desired_wp()
         self.find_gap(scan_data)
         self.for_find_gap(scan_data)
@@ -546,8 +566,8 @@ class FGM_GNU_CONV:
 
         return speed, steer
 
-    def process_observation(self, ranges, ego_odom, opp_odom):
+
+    def process_observation(self, ranges, ego_odom):
         if ego_odom:
-            return self.driving(ranges, ego_odom)
-        else:
-            return self.driving(ranges, opp_odom)
+            return self._process_lidar(ranges, ego_odom)
+    
