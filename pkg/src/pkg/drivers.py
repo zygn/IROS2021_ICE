@@ -2,29 +2,30 @@ import numpy as np
 
 
 class SpeedController:
-    def __init__(self):
+    def __init__(self, params):
+
+        self.MU = params['mu']
+        self.GRAVITY_ACC = params['g']
+        self.PI = params['pi']
+
+        self.WHEEL_BASE = params['racecar_length']
+        self.SPEED_MAX = params['max_speed']
+        self.SPEED_MIN = params['min_speed']
+
+        self.braking_a = params['braking_a']
+        self.braking_b = params['braking_b']
+        self.sus_a = params['sus_a']
+        self.sus_b = params['sus_b']
+
+        self.wpt_path = params['waypoint_path']
+        self.wpt_delimeter = params['waypoint_delim']
 
         self.mode = 1
-        self.MU = 0.523
-        self.GRAVITY_ACC = 9.81
-        self.PI = 3.141592
-        self.WHEEL_BASE = 0.3302
-        self.SPEED_MAX = 15.0 # 15.0
-        self.SPEED_MIN = 5.0
 
         self.scan = []
         self.current_speed = 5.0
         self.steering_angle = 0.0
         self.current_idx = 0
-
-        self.braking_a = 0.0 # 0.0 
-        self.braking_b = 1.0
-        self.sus_a = 0.3 # 0.3
-        self.sus_b = 0.511111
-
-        # self.wpt_path = '/pkg/SOCHI_for_pp.csv'
-        self.wpt_path = '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'
-        self.wpt_delimeter = ','
 
         self.wps, self.wp_num = self.load_wps()
 
@@ -180,28 +181,51 @@ class SpeedController:
 class FGM_GNU_CONV:
     def __init__(self):
 
-        self.RACECAR_LENGTH = 0.3302
-        self.ROBOT_LENGTH = 0.3302
-        self.SPEED_MAX = 15.0
-        self.SPEED_MIN = 5.0
+        self.params = {
+            'racecar_length': 0.3302,
+            'robot_length': 0.3302,
+            'robot_scale': 0.2032,
+            'max_speed': 15.0,
+            'min_speed': 5.0,
+            'pi': 3.141592,
+            'mu': 0.523,
+            'g': 9.81,
+            'look': 2.0,
+            'threshold': 6.0,
+            'gap_size': 1,
+            'filter_scale': 1.1,
+            'gap_theta_gain': 20.0,
+            'ref_theta_gain': 1.5,
+            'best_point_conv_size': 80,
+            'sus_a': 0.3,
+            'sus_b': 0.511111,
+            'braking_a': 0.0,
+            'braking_b': 1.0,
+            'waypoint_delim': ',',
+            'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'      # for ROS ENVIRONMENT
+            # 'waypoint_path': '/pkg/SOCHI_for_pp.csv'                            # for Python main ENVIRONMENT
+        }
+        self.RACECAR_LENGTH = self.params['racecar_length']
+        self.ROBOT_LENGTH = self.params['robot_length']
+        self.SPEED_MAX = self.params['max_speed']
+        self.SPEED_MIN = self.params['min_speed']
 
-        self.MU = 0.523
-        self.GRAVITY_ACC = 9.81
-        self.PI = 3.141592
-        self.ROBOT_SCALE = 0.2032
+        self.MU = self.params['mu']
+        self.GRAVITY_ACC = self.params['g']
+        self.PI = self.params['pi']
+        self.ROBOT_SCALE = self.params['robot_scale']
 
-        self.LOOK = 2.0
-        self.THRESHOLD = 6.0
-        self.GAP_SIZE = 1
-        self.FILTER_SCALE = 1.1
-        self.GAP_THETA_GAIN = 20.0
-        self.REF_THETA_GAIN = 1.5
+        self.LOOK = self.params['look']
+        self.THRESHOLD = self.params['threshold']
+        self.GAP_SIZE = self.params['gap_size']
+        self.FILTER_SCALE = self.params['filter_scale']
+        self.GAP_THETA_GAIN = self.params['gap_theta_gain']
+        self.REF_THETA_GAIN = self.params['ref_theta_gain']
 
-        self.BEST_POINT_CONV_SIZE = 80
+        self.BEST_POINT_CONV_SIZE = self.params['best_point_conv_size']
 
-        # self.waypoint_real_path = '/pkg/SOCHI_for_pp.csv'
-        self.waypoint_real_path = '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'
-        self.waypoint_delimeter = ','
+        self.waypoint_real_path = self.params['waypoint_path']
+        self.waypoint_delimeter = self.params['waypoint_delim']
 
         self.scan_range = 0
         self.desired_gap = 0
@@ -240,9 +264,9 @@ class FGM_GNU_CONV:
         self.closest_wp_dist = 0
         self.closest_obs_dist = 0
 
-        self.scan_filtered_data = None 
+        self.scan_filtered_data = None
 
-        self.speed_control = SpeedController()
+        self.speed_control = SpeedController(self.params)
 
         # init finished
         print("Initialization Success (Suck-C'ex)")
