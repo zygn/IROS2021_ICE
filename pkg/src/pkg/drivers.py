@@ -14,7 +14,6 @@ class SpeedController:
 
         self.braking_a = params['braking_a']
         self.braking_b = params['braking_b']
-        self.sus_a = params['sus_a']
         self.sus_b = params['sus_b']
 
         self.wpt_path = params['waypoint_path']
@@ -88,10 +87,7 @@ class SpeedController:
         final_speed = 0
         if self.current_speed <= set_speed:
             if self.current_speed <= 10:
-                final_speed = set_speed
-            else:
-                # sus_a
-                final_speed = self.current_speed + np.fabs((set_speed - self.current_speed) * self.sus_a)
+                final_speed = self.braking_distance()
         else:
             # sus_b
             final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * self.sus_b)
