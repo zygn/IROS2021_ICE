@@ -19,7 +19,7 @@ class SpeedController:
         self.wpt_path = params['waypoint_path']
         self.wpt_delimeter = params['waypoint_delim']
 
-        self.mode = 1
+        self.mode = params['speed_controller']
 
         self.scan = []
         self.current_speed = 5.0
@@ -122,6 +122,7 @@ class FGM_GNU_CONV:
 
         if params is None:  # This flag is for reinforcement, Default is None.
             self.params = {
+                'speed_controller': 1,
                 'racecar_length': 0.3302,
                 'robot_length': 0.3302,
                 'robot_scale': 0.2032,
