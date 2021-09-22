@@ -62,26 +62,25 @@ class SpeedController:
 
         return angular_speed
 
+
     def direction_speed(self):
-        current_distance = np.fabs(np.average(self.scan[499:580]))
+        current_distance = np.fabs(np.average(self.scan[360:720]))
         direction_speed = 0
         road_direction = np.fabs(self.find_road_direction())
 
         braking_speed = self.braking_distance()
 
-        if current_distance < 5:
-            if self.current_speed < 9:
+        if current_distance < 3:
+            # print('angle')
+            if self.current_speed < 10:
                 direction_speed = self.angle_based()
             else:
-                direction_speed = self.angle_based(self.SPEED_MAX, self.current_speed)
+                direction_speed = self.angle_based(self.current_speed,7)
             # direction_speed = self.speed_suspension(angle_speed)
-        elif current_distance < 10:
-            direction_speed = self.speed_suspension(braking_speed)
         else:
+            # print('braking')
             # direction_speed = float(-(3 / self.PI) * (braking_speed - self.current_speed) * np.fabs(road_direction) + braking_speed)
             direction_speed = self.speed_suspension(braking_speed)
-
-        return direction_speed
 
     def speed_suspension(self, set_speed):
         final_speed = 0
