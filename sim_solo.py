@@ -35,12 +35,14 @@ if __name__ == '__main__':
 
     # planner = FGM_CONV(conf)
     # planner = FGM_GNU(conf)
-    # planner = FGM_GNU_CONV(conf)
+    planner = FGM_GNU_CONV(conf)
     # planner = FGM_PP_V1(conf)
     planner = FGM_PP_V2(conf)
     # planner = FGM_STECH(conf)
     # planner = FGM_STECH_CONV(conf)
     #planner = PP(conf)
+    # planner = PP(conf)
+
 
     laptime = 0.0
     start = time.time()

@@ -1,8 +1,6 @@
 import numpy as np
 import threading
 
-
-
 class FGM(threading.Thread):
     BUBBLE_RADIUS = 160
     PREPROCESS_CONV_SIZE = 100  # PREPROCESS_consecutive_SIZE

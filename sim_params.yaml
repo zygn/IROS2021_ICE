@@ -24,17 +24,18 @@ speed_controller: 1
 debug:
   gui_render: true        # rendering screen (true|false)
   plotting: false          # print speed graph (true|false)
-  logging: false           # save log (true|false)
+  logging: true          # save log (true|false)
   collision_reset: false   # restart at collision (true|false)
   collision_interval: 2   # repeat time at collision (int)
+  collision_pause: false
 
 
 
 # Planner Constants
-wpt_path: 'map/wp_SOCHI.csv'
+wpt_path: 'map/SOCHI_for_pp.csv'
 wpt_delimeter: ','
 
-max_speed: 14.0
+max_speed: 15.0
 min_speed: 5.0
 
 robot_length: 0.3302
@@ -47,7 +48,7 @@ g: 9.81
 
 fgm:
   look: 2.0
-  threshold: 3.0
+  threshold: 6.0
   gap_size: 1
   filter_scale: 1.1
   gap_theta_gain: 20.0
@@ -57,5 +58,9 @@ odg:
   threshold: 2.0
   filter_scale: 1.1
 
+braking_a: -1
+braking_b: 1.1
+sus_a: 0.4
+sus_b: 0.5
 
 

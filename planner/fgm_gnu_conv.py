@@ -171,22 +171,6 @@ class FGM_GNU_CONV:
             self.scan_origin[i] = scan_data[i]
             self.scan_filtered[i] = scan_data[i]
 
-        for i in range(self.scan_range):
-            if self.scan_origin[i] == 0:
-                cont = 0
-                sum = 0
-                for j in range(1, 21):
-                    if i - j >= 0:
-                        if self.scan_origin[i - j] != 0:
-                            cont += 1
-                            sum += self.scan_origin[i - j]
-                    if i + j < self.scan_range:
-                        if self.scan_origin[i + j] != 0:
-                            cont += 1
-                            sum += self.scan_origin[i + j]
-                self.scan_origin[i] = sum / cont
-                self.scan_filtered[i] = sum / cont
-
         for i in range(self.scan_range - 1):
             if self.scan_origin[i] * self.FILTER_SCALE < self.scan_filtered[i + 1]:
                 unit_length = self.scan_origin[i] * self.interval
@@ -217,6 +201,8 @@ class FGM_GNU_CONV:
                     else:
                         break
                     j += 1
+
+        return self.scan_filtered
 
     def find_gap(self, scan):
         self.gaps = []
@@ -373,7 +359,7 @@ class FGM_GNU_CONV:
         :param odom_data: odom data
         :return: steer, speed
         """
-        self.subCallback_scan(scan_data)
+        scan_data = self.subCallback_scan(scan_data)
         self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
         self.current_speed = odom_data['linear_vel']
         self.find_desired_wp()
@@ -381,8 +367,8 @@ class FGM_GNU_CONV:
         # obstacle = self.define_obstacles(self.scan_filtered)
         # self.find_nearest_obs(obstacle)
 
-        self.find_gap(self.scan_filtered)
-        self.for_find_gap(self.scan_filtered)
+        self.find_gap(scan_data)
+        self.for_find_gap(scan_data)
 
         self.desired_gap = self.find_best_gap(self.desired_wp_rt)
         self.best_point = self.find_best_point(self.desired_gap)

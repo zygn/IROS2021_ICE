@@ -6,14 +6,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 from argparse import Namespace
 
-from planner.fgm_conv import FGM_CONV
-from planner.fgm_gnu import FGM_GNU
+# Import planner classes
+# from planner.fgm_stech import FGM
+# from planner.fgm_gnu import FGM_GNU
 from planner.fgm_gnu_conv import FGM_GNU_CONV
-from planner.fgm_pp_v1 import FGM_PP_V1
-from planner.fgm_pp_v2 import FGM_PP_V2
-from planner.fgm_stech import FGM_STECH
-from planner.fgm_stech_conv import FGM_STECH_CONV
-from planner.pp import PP
+# from planner.legacy.odg_pf import ODGPF
+# from planner.legacy.odg_gnu import ODGGNU
+from planner.fgm_conv import FGM_CONV
 
 if __name__ == '__main__':
 
@@ -22,7 +21,7 @@ if __name__ == '__main__':
     conf = Namespace(**conf_dict)
 
     if conf.debug['logging']:
-        file_name = f'log/log_{time.strftime("%Y-%m-%d-%H-%M-%S")}.csv'
+        file_name = f'log/all_sc{conf.speed_controller}_{time.strftime("%Y-%m-%d-%H-%M-%S")}.csv'
         print(f"Result will logged at {file_name}")
         csvfile = open(file_name, 'w', newline='')
         wdr = csv.writer(csvfile)
@@ -34,7 +33,7 @@ if __name__ == '__main__':
     if conf.debug['gui_render']:
         env.render()
 
-    for pln in [FGM_CONV, FGM_GNU, FGM_GNU_CONV, FGM_PP_V1, FGM_PP_V2, FGM_STECH, FGM_STECH_CONV, PP]:
+    for pln in [FGM_GNU_CONV, FGM_CONV]:
         planner = pln(conf)
         laptime = 0.0
         start = time.time()
@@ -58,6 +57,7 @@ if __name__ == '__main__':
             speed, steer = planner.driving(scan_data, odom_data)
             obs, step_reward, done, info = env.step(np.array([[steer, speed]]))
             laptime += step_reward
+            collision = True if obs['collisions'][0] == 1. else False
 
             if conf.debug['gui_render']:
                 env.render(mode='human')
@@ -79,9 +79,8 @@ if __name__ == '__main__':
             if len(plot_list) >= 1000:
                 del(plot_list[0])
 
-            if done and not info['checkpoint_done'][0] and conf.debug['collision_reset']:
-                collision = True
-                if done_i < conf.debug['collision_interval']:
+            if done and collision:
+                if conf.debug['collision_reset'] and done_i < conf.debug['collision_interval']:
                     done_i += 1
                     real_elapsed_time = time.time() - start
                     max_speed = np.max(data_list)
@@ -103,6 +102,9 @@ if __name__ == '__main__':
                     plot_interval = 0
                     plot_list = []
                     data_list = []
+
+                if conf.debug['collision_pause']:
+                    done = False
 
         real_elapsed_time = time.time()-start
         max_speed = np.max(data_list)
