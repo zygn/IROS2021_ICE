@@ -16,7 +16,7 @@ from pkg.drivers import FGM_GNU_CONV as Driver
 drivers = [Driver()]
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
-RACETRACK = 'SOCHI_OBS'
+RACETRACK = 'SOCHI'
 
 
 def _pack_odom(obs, i):

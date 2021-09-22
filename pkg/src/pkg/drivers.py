@@ -137,14 +137,14 @@ class FGM_GNU_CONV:
                 'filter_scale': 1.1,
                 'gap_theta_gain': 20.0,
                 'ref_theta_gain': 1.5,
-                'best_point_conv_size': 80,
+                'best_point_conv_size': 160,
                 'sus_a': 0.52222222222,
                 'sus_b': 0.51111111111,
                 'braking_a': -0.6111111111,
                 'braking_b': 1.05555555555,
                 'waypoint_delim': ',',
                 'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'      # for ROS ENVIRONMENT
-                # 'waypoint_path': '/pkg/SOCHI_for_pp.csv'                            # for Python main ENVIRONMENT
+                # 'waypoint_path': 'pkg/SOCHI_for_pp.csv'                            # for Python main ENVIRONMENT
             }
         else:
             self.params = params
@@ -285,6 +285,7 @@ class FGM_GNU_CONV:
 
         abs_cord = [x,y]
         return abs_cord
+        
 
     def find_desired_wp(self):
         wp_index_temp = self.wp_index_current
@@ -461,9 +462,12 @@ class FGM_GNU_CONV:
 
                 i += 1
             # 가장 작은 distance를 갖는 gap만 return
+            
+
             return self.gaps[gap_idx]
 
     def find_best_point(self, best_gap):
+        # print(best_gap)
         averaged_max_gap = np.convolve(self.scan_filtered[best_gap[0]:best_gap[1]], np.ones(self.BEST_POINT_CONV_SIZE),
                                        'same') / self.BEST_POINT_CONV_SIZE
         return averaged_max_gap.argmax() + best_gap[0]
@@ -512,6 +516,7 @@ class FGM_GNU_CONV:
         steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
 
         steer = steering_angle
+        # print(steer)
         speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
                                            self.wp_index_current)
         self.dmin_past = dmin
@@ -523,12 +528,13 @@ class FGM_GNU_CONV:
 
         :param scan_data: scan data
         :param odom_data: odom data
-        :return: speed, steer
+        :return: steer, speed
         """
 
         scan_data = self.subCallback_scan(scan_data)
         self.current_position = [odom_data['pose_x'], odom_data['pose_y'], odom_data['pose_theta']]
         self.current_speed = odom_data['linear_vel_x']
+        #self.LOOK = 10#0.5 + (0.2*self.current_speed)
         self.find_desired_wp()
         self.find_gap(scan_data)
         self.for_find_gap(scan_data)
@@ -544,4 +550,3 @@ class FGM_GNU_CONV:
     def process_observation(self, ranges, ego_odom):
         if ego_odom:
             return self._process_lidar(ranges, ego_odom)
-    
