@@ -15,3 +15,5 @@ venv/**/*
 challengeproject.tar
 .idea/
 log
+.riders-token
+pkg/src/pkg/legacy

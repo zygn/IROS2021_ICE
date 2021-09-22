@@ -131,17 +131,17 @@ class FGM_GNU_CONV:
                 'pi': 3.141592,
                 'mu': 0.523,
                 'g': 9.81,
-                'look': 2.0,
+                'look': 3.0,
                 'threshold': 6.0,
                 'gap_size': 1,
                 'filter_scale': 1.1,
                 'gap_theta_gain': 20.0,
                 'ref_theta_gain': 1.5,
                 'best_point_conv_size': 80,
-                'sus_a': 0.3,
-                'sus_b': 0.511111,
-                'braking_a': 0.0,
-                'braking_b': 1.0,
+                'sus_a': 0.52222222222,
+                'sus_b': 0.51111111111,
+                'braking_a': -0.6111111111,
+                'braking_b': 1.05555555555,
                 'waypoint_delim': ',',
                 'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'      # for ROS ENVIRONMENT
                 # 'waypoint_path': '/pkg/SOCHI_for_pp.csv'                            # for Python main ENVIRONMENT
@@ -385,10 +385,17 @@ class FGM_GNU_CONV:
                     i += 1
                 end_idx_temp = i
 
+                gap_size = np.fabs(end_idx_temp - start_idx_temp)
+
+                if gap_size < 30:
+                    i += 1
+                    continue
+
                 gap_temp = [0] * 3
                 gap_temp[0] = start_idx_temp
                 gap_temp[1] = end_idx_temp
                 # gap_temp[2] = max_idx_temp
+                
                 self.gaps.append(gap_temp)
             i += 1
 

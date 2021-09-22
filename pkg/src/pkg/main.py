@@ -10,13 +10,13 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
 
 # import your drivers here
-from pkg.drivers import DisparityExtender
+from pkg.drivers import FGM_GNU_CONV as Driver
 
 # choose your drivers here (1-4)
-drivers = [DisparityExtender()]
+drivers = [Driver()]
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
-RACETRACK = 'SOCHI'
+RACETRACK = 'SOCHI_OBS'
 
 
 def _pack_odom(obs, i):
