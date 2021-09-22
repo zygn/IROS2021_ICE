@@ -1,5 +1,5 @@
 # Environment Constants
-map_path: "map/SOCHI"
+map_path: "map/SOCHI_OBS"
 map_ext: '.png'
 
 p1:               # 1P starting pooint (solo, duo_1p)
@@ -22,7 +22,7 @@ speed_controller: 1
 
 # Debugging Settings
 debug:
-  gui_render: false        # rendering screen (true|false)
+  gui_render: true        # rendering screen (true|false)
   plotting: false          # print speed graph (true|false)
   logging: false           # save log (true|false)
   collision_reset: false   # restart at collision (true|false)

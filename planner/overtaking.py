@@ -4,9 +4,9 @@ import threading
 from queue import Queue
 import time
 
-from planner.sub_planner.fgm_for_fgmpp import FGM
 from planner.sub_planner.pp_for_fgmpp import PP
-from planner.sub_planner.speed_controller import SpeedController as SC
+from planner.sub_planner.overtaking_fgm import overtaking_fgm
+from .sub_planner.speed_controller import SpeedController as SC
 
 class FGM_PP_V2:
     def __init__(self, params):
@@ -40,7 +40,6 @@ class FGM_PP_V2:
 
         self.current_speed = 5.0
         self.scan_filtered = []
-        self.scan_origin = []
         self.scan_range = 0
 
         self.radians_per_elem = 0
@@ -52,8 +51,6 @@ class FGM_PP_V2:
         self.dect_obs = []
         self.len_obs = []
         self.obs = False
-        self.past_obs = False
-        self.obs_y = 0
 
         self.main_global_q = Queue(1)
         self.global_main_q = Queue(1)
@@ -178,10 +175,8 @@ class FGM_PP_V2:
     def preprocess_lidar(self, scan_data):
         self.scan_range = len(scan_data)
         self.scan_filtered = [0] * self.scan_range
-        self.scan_origin = [0] * self.scan_range
         for i in range(self.scan_range):
             self.scan_filtered[i] = scan_data[i]
-            self.scan_origin[i] = scan_data[i]
         self.radians_per_elem = 0.00435
         proc_ranges = np.convolve(scan_data, np.ones(self.PREPROCESS_CONV_SIZE), 'same') / self.PREPROCESS_CONV_SIZE
         proc_ranges = np.clip(proc_ranges, 0, self.MAX_LIDAR_DIST)
@@ -199,66 +194,55 @@ class FGM_PP_V2:
             max_idx_temp = i
             min_idx_temp = i
             i = i+1
-            while  math.sqrt(math.pow(self.scan_origin[i]*math.sin(math.radians(0.25)),2) + math.pow(self.scan_origin[i-1]-self.scan_origin[i]*math.cos(math.radians(0.25)),2)) < d_group + self.scan_origin[i]*d_pi and (i+1 < self.scan_range ):
-                if self.scan_origin[i] > self.scan_origin[max_idx_temp]:
+            while  math.sqrt(math.pow(self.scan_filtered[i]*math.sin(math.radians(0.25)),2) + math.pow(self.scan_filtered[i-1]-self.scan_filtered[i]*math.cos(math.radians(0.25)),2)) < d_group + self.scan_filtered[i]*d_pi and (i+1 < self.scan_range ):
+                if self.scan_filtered[i] > self.scan_filtered[max_idx_temp]:
                     max_idx_temp = i
-                if self.scan_origin[i] < self.scan_origin[min_idx_temp]:
+                if self.scan_filtered[i] < self.scan_filtered[min_idx_temp]:
                     min_idx_temp = i
                 i = i+1
             end_idx_temp = i-1
-            obs_temp = [0]*6
+            obs_temp = [0]*5
             obs_temp[0] = start_idx_temp
             obs_temp[1] = end_idx_temp
             obs_temp[2] = max_idx_temp
-            obs_temp[3] = min_idx_temp
-            obs_temp[4] = self.scan_origin[max_idx_temp]
-            obs_temp[5] = self.scan_origin[min_idx_temp]
+            obs_temp[3] = self.scan_filtered[max_idx_temp]
+            obs_temp[4] = self.scan_filtered[min_idx_temp]
             self.scan_obs.append(obs_temp)
             i+=1
 
         self.dect_obs=[]
         for i in range(len(self.scan_obs)):
-            if self.scan_obs[i][5] < 4 and self.scan_obs[i][5] > 0:
-                obs_temp = [0]*6
+            if self.scan_obs[i][3] < 4 and self.scan_obs[i][3] > 0:
+                obs_temp = [0]*5
                 obs_temp[0] = self.scan_obs[i][0]
                 obs_temp[1] = self.scan_obs[i][1]
                 obs_temp[2] = self.scan_obs[i][2]
                 obs_temp[3] = self.scan_obs[i][3]
                 obs_temp[4] = self.scan_obs[i][4]
-                obs_temp[5] = self.scan_obs[i][5]
                 self.dect_obs.append(obs_temp)
         #print(self.dect_obs)
         self.len_obs=[]
 
         for i in range(len(self.dect_obs)):
             theta = (self.dect_obs[i][1] - self.dect_obs[i][0])*0.25
-            lengh = math.sqrt(math.pow(self.scan_origin[self.dect_obs[i][1]]*math.sin(math.radians(theta)),2) + math.pow(self.scan_origin[self.dect_obs[i][0]]-self.scan_origin[self.dect_obs[i][1]]*math.cos(math.radians(theta)),2))
+            lengh = math.sqrt(math.pow(self.scan_filtered[self.dect_obs[i][1]]*math.sin(math.radians(theta)),2) + math.pow(self.scan_filtered[self.dect_obs[i][0]]-self.scan_filtered[self.dect_obs[i][1]]*math.cos(math.radians(theta)),2))
             #print(i,lengh)
-            if lengh < 1 and lengh >0:
-                obs_temp = [0]*6
+            if lengh < 1:
+                obs_temp = [0]*5
                 obs_temp[0] = self.dect_obs[i][0]
                 obs_temp[1] = self.dect_obs[i][1]
                 obs_temp[2] = self.dect_obs[i][2]
                 obs_temp[3] = self.dect_obs[i][3]
                 obs_temp[4] = self.dect_obs[i][4]
-                obs_temp[5] = self.dect_obs[i][5]
                 self.len_obs.append(obs_temp)
+        #print(self.len_obs)
 
         self.obs = False
         for i in range(len(self.len_obs)):
             if self.len_obs[i][0] > 680 or self.len_obs[i][1] < 400:
-                # print(self.len_obs)
                 self.obs = False
             else:
                 self.obs= True
-                self.obs_y = self.len_obs[i][5] * np.sin((np.pi/720) * (self.len_obs[i][3] - 180))
-                if self.past_obs != False:
-                    print((self.past_obs -self.obs_y)/0.01 - self.current_speed)
-                # print(self.scan_obs)
-                # print(self.len_obs)
-                # print(self.len_obs[i][5] * np.sin((np.pi/720) * (self.len_obs[i][3] - 180)))
-                # print(self.len_obs[i][5] * np.cos((np.pi / 720) * (self.len_obs[i][3] - 180)))
-                # print(self.current_speed)
                 break
 
     def driving(self, scan_data, odom_data):
@@ -271,7 +255,6 @@ class FGM_PP_V2:
 
         self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
         self.current_speed = odom_data['linear_vel']
-        self.scan_origin = scan_data
         self.scan_filtered = self.preprocess_lidar(scan_data)
 
         self.find_nearest_wp()
@@ -290,11 +273,9 @@ class FGM_PP_V2:
         if self.obs:
             steer = self.local_main_q.get()
             self.global_main_q.get()
-            self.past_obs = self.obs_y
         else:
             steer = self.global_main_q.get()
             self.local_main_q.get()
-            self.past_obs = False
 
         speed = self.speed_controller()
         return speed, steer

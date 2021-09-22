@@ -1,6 +1,6 @@
 import numpy as np
 import threading
-from .speed_controller import SpeedController as SC
+
 
 
 class FGM(threading.Thread):
