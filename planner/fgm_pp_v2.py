@@ -225,10 +225,16 @@ class FGM_PP_V2:
                 # print(self.len_obs)
                 self.obs = False
             else:
-                self.obs= True
-                self.obs_y = self.len_obs[i][5] * np.sin((np.pi/720) * (self.len_obs[i][3] - 180))
-                if self.past_obs != False:
-                    print((self.past_obs -self.obs_y)/0.01 - self.current_speed)
+                print("cnt_obs : ", len(self.len_obs))
+                self.obs = True
+                theta = (int((self.len_obs[i][1] + self.len_obs[i][0])/2) - 180) * (4.7/1080)
+                # print(theta)
+                _x = self.len_obs[i][5] * np.cos(theta)
+                _y = self.len_obs[i][5] * np.sin(theta)
+                print(f"x: {_x}, y: {_y}")
+
+                # if self.past_obs != False:
+
                 # print(self.scan_obs)
                 # print(self.len_obs)
                 # print(self.len_obs[i][5] * np.sin((np.pi/720) * (self.len_obs[i][3] - 180)))
