@@ -4,16 +4,25 @@ import numpy as np
 import concurrent.futures
 import os
 import sys
+import random
 
 # Get ./src/ folder & add it to path
 current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
 
 # import your drivers here
-from pkg.drivers import FGM_GNU_CONV as Driver
+from pkg.planner.drivers import FGM_GNU_CONV as GNU
+from pkg.planner.fgm_conv import FGM_CONV as CONV
+from pkg.planner.sample import DisparityExtender, GapFollower
 
 # choose your drivers here (1-4)
-drivers = [Driver()]
+# pick_list = [CONV(), DisparityExtender(), GapFollower()]
+pick_list = [CONV()]
+# pick_list = [DisparityExtender()]
+# pick_list = [GapFollower()]
+drivers = [GNU()]
+# drivers.append(random.choice(pick_list))
+# print(f"{drivers[0].__class__.__name__} vs {drivers[1].__class__.__name__}")
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'
