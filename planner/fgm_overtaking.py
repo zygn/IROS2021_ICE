@@ -63,6 +63,11 @@ class FGM:
         self.current_speed = 5.0
         self.dmin_past = 0
         self.lap = 0
+
+        self.scan_obs = []
+        self.dect_obs = []
+        self.len_obs = []
+        self.obs = False
         self.ovt = False
         self.past_point = 0
 
@@ -349,10 +354,8 @@ class FGM:
 
         steer = steering_angle
         if self.ovt:
-            print(1)
             speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 1)
         else:
-            print(2)
             speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 0)
 
         self.dmin_past = dmin
@@ -390,7 +393,7 @@ class FGM:
 
         self.dect_obs=[]
         for i in range(len(self.scan_obs)):
-            if self.scan_obs[i][5] < 4 and self.scan_obs[i][5] > 0:
+            if self.scan_obs[i][5] < 8 and self.scan_obs[i][5] > 0:
                 obs_temp = [0]*6
                 obs_temp[0] = self.scan_obs[i][0]
                 obs_temp[1] = self.scan_obs[i][1]
@@ -418,16 +421,18 @@ class FGM:
 
 
 
-        self.obs = False
+        #self.obs = False
         for i in range(len(self.len_obs)):
-            if self.len_obs[i][0] > 680 or self.len_obs[i][1] < 400:
+            if self.len_obs[i][0] > 720 or self.len_obs[i][1] < 360:
                 # print(self.len_obs)
                 self.obs = False
                 self.ovt = False
             else:
+                print(self.obs)
                 if self.obs== True:
                     self.ovt = True
                 self.obs = True
+                break
 
     def find_ovt_gap(self):
         num = len(self.gaps)
@@ -490,6 +495,7 @@ class FGM:
 
         self.find_gap(scan_data)
         #장애물감지, 추월알고리즘 사용가능한지 판단
+        self.obs_dect()
 
         self.for_find_gap(scan_data)
         if self.ovt==False:
