@@ -1,4 +1,4 @@
-from .sub_planner.speed_controller import SpeedController as SC
+from .sub_planner.sc_for_fgm import SpeedController as SC
 import numpy as np
 import math
 import time
@@ -16,6 +16,7 @@ class FGM:
         self.GRAVITY_ACC = params.g
         self.PI = params.pi
         self.ROBOT_SCALE = params.robot_scale
+        self.mode = params.speed_controller
 
         self.LOOK = params.fgm['look']
         self.THRESHOLD = params.fgm['threshold']
@@ -67,7 +68,6 @@ class FGM:
 
         self.closest_wp_dist = 0
         self.closest_obs_dist = 0
-
         self.speed_control = SC(params)
 
     def find_nearest_obs(self, obs):
@@ -348,9 +348,13 @@ class FGM:
         steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
 
         steer = steering_angle
-        
-        speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
-                                           self.wp_index_current)
+        if self.ovt:
+            print(1)
+            speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 1)
+        else:
+            print(2)
+            speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 0)
+
         self.dmin_past = dmin
 
         return steer, speed

@@ -10,8 +10,8 @@ class SpeedController:
         self.GRAVITY_ACC = params.g
         self.PI = params.pi
         self.WHEEL_BASE = params.robot_length
-        self.SPEED_MAX = params.max_speed
-        self.SPEED_MIN = params.min_speed
+        self.SPEED_MAX = 11
+        self.SPEED_MIN = 8
 
         self.scan = []
         self.current_speed = 5.0
@@ -26,8 +26,8 @@ class SpeedController:
         self.wps, self.wp_num = self.load_wps()
 
     def const_speed(self):
-        speed_straight = 14
-        speed_corner = 6
+        speed_straight = 8
+        speed_corner = 4
         straight_steer = np.pi / 18
 
         if np.abs(self.steering_angle) > straight_steer:
