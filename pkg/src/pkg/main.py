@@ -12,17 +12,22 @@ sys.path.append(current_dir)
 
 # import your drivers here
 from pkg.planner.drivers import FGM_GNU_CONV as GNU
+from pkg.planner.drivers2 import FGM_GNU_CONV as GNU2
 from pkg.planner.fgm_conv import FGM_CONV as CONV
+from pkg.planner.wall import Wall as Wall
 from pkg.planner.sample import DisparityExtender, GapFollower
+from pkg.planner.fgm_overtaking import FGM
+from pkg.planner.fgm_progress import FGM_p
 
 # choose your drivers here (1-4)
 # pick_list = [CONV(), DisparityExtender(), GapFollower()]
-pick_list = [CONV()]
+# pick_list = [Wall()]
 # pick_list = [DisparityExtender()]
 # pick_list = [GapFollower()]
-drivers = [GNU()]
+# drivers = [FGM_p(), Wall()]
+drivers = [FGM_p(),GNU()]
 # drivers.append(random.choice(pick_list))
-# print(f"{drivers[0].__class__.__name__} vs {drivers[1].__class__.__name__}")
+print(f"{drivers[0].__class__.__name__} vs {drivers[1].__class__.__name__}")
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'
@@ -56,6 +61,7 @@ class GymRunner(object):
         driver_count = len(drivers)
         if driver_count == 1:
             poses = np.array([[0.8007017, -0.2753365, 4.1421595]])
+            poses = np.array([[0.8162458, 1.1614572, 4.1446321]])
         elif driver_count == 2:
             poses = np.array([
                 [0.8007017, -0.2753365, 4.1421595],
@@ -93,9 +99,10 @@ class GymRunner(object):
                 speed, steer = future.result()
                 actions.append([steer, speed])
             actions = np.array(actions)
-            obs, step_reward, done, info = env.step(actions)
+            obs, step_reward, _, info = env.step(actions)
+            # obs, step_reward, done, info = env.step(actions)
             laptime += step_reward
-            env.render(mode='human')
+            env.render(mode='human_fast')
 
         print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time() - start)
 

@@ -15,7 +15,7 @@ import math
 class SpeedController:
     def __init__(self):
 
-        self.mode = 1
+        self.mode = 0
         self.MU = 0.523
         self.GRAVITY_ACC = 9.81
         self.PI = 3.141592
@@ -43,8 +43,8 @@ class SpeedController:
         self.wps, self.wp_num = self.load_wps()
 
     def const_speed(self):
-        speed_straight = 14
-        speed_corner = 6
+        speed_straight = 6.5
+        speed_corner = 5
         straight_steer = np.pi / 18
 
         if np.abs(self.steering_angle) > straight_steer:
@@ -634,7 +634,7 @@ class FGM_GNU_CONV:
                 self.obs = False
                 self.ovt = False
             else:
-                print(self.obs)
+                # print(self.obs)
                 if self.obs== True:
                     self.ovt = True
                 self.obs = True
@@ -689,8 +689,8 @@ class FGM_GNU_CONV:
         self.wp_angle = self.desired_wp_rt[1]
         # #% 13, 12, 13 
         if self.current_speed > 13:
-            self.THRESHOLD = 6 #8
-        
+            self.THRESHOLD = 8
+            
         # elif self.current_speed > 10 and self.current_speed <= 13:
         #     self.THRESHOLD = 5 #6
             
@@ -750,7 +750,7 @@ class FGM_GNU_CONV:
         speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
                                            self.wp_index_current)
         self.dmin_past = dmin
-        print(self.current_speed)
+        # print(self.current_speed)
         return steer, speed
 
     def _process_lidar(self, scan_data, odom_data):
@@ -768,17 +768,18 @@ class FGM_GNU_CONV:
         self.find_desired_wp()
         self.find_gap(scan_data)
         self.for_find_gap(scan_data)
-        # if self.ovt==False:
-        #     self.desired_gap = self.find_best_gap(self.desired_wp_rt)
-        # else:
-        #     self.desired_gap = self.find_ovt_gap(self.desired_wp_rt)
+        if self.ovt==False:
+            self.desired_gap = self.find_best_gap(self.desired_wp_rt)
+        else:
+            self.desired_gap = self.find_ovt_gap(self.desired_wp_rt)
 
         self.desired_gap = self.find_best_gap(self.desired_wp_rt)
         self.best_point = self.find_best_point(self.desired_gap)
 
         steer, speed = self.main_drive(self.best_point)
         
-        return speed, steer
+
+        return speed*0.8, steer
 
 
     def process_observation(self, ranges, ego_odom):

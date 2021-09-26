@@ -1,260 +1,34 @@
+from .drivers import SpeedController as SC
 import numpy as np
 import math
-# from main import GymRunner
+import time
 
-# Reinforcement learning 할만한 것
-# gap_size, conv_size, braking_a, braking_b, sus_b 
 
-# gap_size 제한 value 공식화 (상수? 공식? 선택해)
-# 속도에 따른 steer value 조절
+class FGM:
+    def __init__(self, params):
 
-#############################
-# Maintainer: Changsoo Kang #
-#############################
+        self.RACECAR_LENGTH = params.robot_length
+        self.ROBOT_LENGTH = params.robot_length
+        self.SPEED_MAX = params.max_speed
+        self.SPEED_MIN = params.min_speed
 
-class SpeedController:
-    def __init__(self):
+        self.MU = params.mu
+        self.GRAVITY_ACC = params.g
+        self.PI = params.pi
+        self.ROBOT_SCALE = params.robot_scale
+        self.mode = params.speed_controller
 
-        self.mode = 1
-        self.MU = 0.523
-        self.GRAVITY_ACC = 9.81
-        self.PI = 3.141592
-        self.WHEEL_BASE = 0.3302
-        self.SPEED_MAX = 15.0 # 15.0
-        self.SPEED_MIN = 5.0
+        self.LOOK = params.fgm['look']
+        self.THRESHOLD = params.fgm['threshold']
+        self.GAP_SIZE = params.fgm['gap_size']
+        self.FILTER_SCALE = params.fgm['filter_scale']
+        self.GAP_THETA_GAIN = params.fgm['gap_theta_gain']
+        self.REF_THETA_GAIN = params.fgm['ref_theta_gain']
 
-        self.scan = []
-        self.current_speed = 5.0
-        self.steering_angle = 0.0
-        self.current_idx = 0
-        self.lap_count = 0
-        #%
-        # lap_time: 78.76 braking_a: -2.0 sus_b: 1.25
-        self.braking_a = -2.0#-1.591111111111111111#-0.611111111111111 #-0.611111111111111 
-        self.braking_b = 1.05555555555556 #1.0
-        self.sus_a = 0.522222222222222 #0.688889 #0.3 # 0.3
-        self.sus_b = 1.25#0.961111111111111 #0.511111 #0.511111
-#python
-        self.wpt_path = 'pkg/SOCHI_for_pp.csv'
-#docker
-        # self.wpt_path = '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'
-        self.wpt_delimeter = ','
+        self.BEST_POINT_CONV_SIZE = 80
 
-        self.wps, self.wp_num = self.load_wps()
-
-    def const_speed(self):
-        speed_straight = 14
-        speed_corner = 6
-        straight_steer = np.pi / 18
-
-        if np.abs(self.steering_angle) > straight_steer:
-            const_speed = speed_corner
-        else:
-            const_speed = speed_straight
-
-        return const_speed
-
-    def braking_distance(self):
-        current_distance = np.fabs(np.average(self.scan[499:580]))
-
-        if np.isnan(current_distance):
-            print("SCAN ERROR")
-            current_distance = 1.0
-        # braking_a: -1
-        braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(current_distance)) - self.braking_a
-        # braking_b: 1.1
-        braking_speed *= self.braking_b
-
-        if braking_speed >= self.SPEED_MAX:
-            braking_speed = self.SPEED_MAX
-
-        return braking_speed
-
-    def angle_based(self, max_speed=8.0, min_speed=4.0):
-        if np.fabs(self.steering_angle) > self.PI / 8:
-            angular_speed = min_speed
-        else:
-            angular_speed = float(-(3 / self.PI) * (max_speed - min_speed) * np.fabs(self.steering_angle) + max_speed)
-
-        return angular_speed
-
-    # Road Direction Based Speed Control
-    def load_wps(self):
-        wpt_path = self.wpt_path
-        wpt_delimiter = self.wpt_delimeter
-
-        file_wps = np.genfromtxt(wpt_path, delimiter=wpt_delimiter, dtype='float')
-
-        temp_waypoint = []
-        wp_num = 0
-        for i in file_wps:
-            wps_point = [i[0], i[1], 0]
-            temp_waypoint.append(wps_point)
-            wp_num += 1
-
-        return temp_waypoint, wp_num
-
-    def get_distance(self, origin, target):
-        _dx = origin[0] - target[0]
-        _dy = origin[1] - target[1]
-
-        _res = np.sqrt(_dx ** 2 + _dy ** 2)
-
-        return _res
-
-    def find_next_target_wp(self):
-        look_const = 2.0
-
-        current_idx = self.current_idx
-        wp_target = self.current_idx + 1
-
-        temp_distance = 0
-        while True:
-            if wp_target >= self.wp_num - 1:
-                wp_target = 0
-
-            temp_distance = self.get_distance(self.wps[wp_target], self.wps[current_idx])
-
-            if temp_distance > look_const: break
-            wp_target += 1
-
-        return wp_target
-
-    def find_road_direction(self):
-        current_point = self.wps[self.current_idx]
-        next_idx = self.find_next_target_wp()
-        target_point = self.wps[next_idx]
-
-        dx = current_point[0] - target_point[0]
-        dy = current_point[1] - target_point[1]
-
-        road_direction = np.arctan2(dy, dx)
-
-        return road_direction
-
-    def direction_speed(self):
-        current_distance = np.fabs(np.average(self.scan[499:580]))
-        direction_speed = 0
-        road_direction = np.fabs(self.find_road_direction())
-
-        braking_speed = self.braking_distance()
-
-        if current_distance < 5:
-            if self.current_speed < 9:
-                direction_speed = self.angle_based()
-            else:
-                direction_speed = self.angle_based(self.SPEED_MAX, self.current_speed)
-            # direction_speed = self.speed_suspension(angle_speed)
-        elif current_distance < 10:
-            direction_speed = self.speed_suspension(braking_speed)
-        else:
-            # direction_speed = float(-(3 / self.PI) * (braking_speed - self.current_speed) * np.fabs(road_direction) + braking_speed)
-            direction_speed = self.speed_suspension(braking_speed)
-
-        return direction_speed
-
-    def speed_suspension(self, set_speed):
-        final_speed = 0
-        if self.current_speed <= set_speed:
-            final_speed = set_speed
-            # if self.current_speed >= 10:
-            #     final_speed = set_speed
-            # else:
-            #     # sus_a
-            #     final_speed = self.current_speed + np.fabs((set_speed - self.current_speed) * self.sus_a)
-        else:
-            # sus_b
-            final_speed = self.current_speed - np.fabs((set_speed - self.current_speed) * self.sus_b)
-
-        return final_speed
-
-    def routine(self, scan, speed, steer, idx):
-        calculated_speed = 0
-
-        self.scan = scan
-        self.current_speed = speed
-        self.steering_angle = steer
-        self.current_idx = idx
-        # print(self.current_idx)
-        
-        #%
-        if self.current_idx >= 4000 and self.lap_count == 0:
-            # print(self.lap_count)
-            self.lap_count = 1
-        # lap_time: 78.55
-        if self.current_idx < 200 and self.lap_count == 0 :#or (self.current_idx > 500 and self.current_idx < 550) :#or (self.current_idx > 700 and self.current_idx < 750): #350 , 525
-            # print(self.current_idx)
-            self.SPEED_MAX = 20 #20
-            self.braking_a = -10.0 #-5.0
-            self.sus_b = 3.25 #3.25
-
-        elif self.current_idx < 200 and self.lap_count == 1:
-            self.SPEED_MAX = 20# - 0.12 * (self.current_idx - 100) #20
-            self.braking_a = -10.0 + 0.07 * (self.current_idx - 100) #-5.0
-            self.sus_b = 3.25 - 0.01 * (self.current_idx - 100)
-            if self.current_idx < 100:
-                # print('in')
-                self.SPEED_MAX = 20 #20
-                self.braking_a = -10.0 #-5.0
-                self.sus_b = 3.25 #3.25
-
-        elif self.current_idx >= 200 and self.current_idx <= 850:  # 350
-            self.SPEED_MAX = 20 #20
-            self.braking_a = -3.0 #-5.0
-            self.sus_b = 2.25 #3.25
-
-        elif self.current_idx >= 850 and self.current_idx <= 950:  # 350
-            self.SPEED_MAX = 20 - 0.12 * (self.current_idx - 850) #20
-            self.braking_a = -3.0 + 0.018 * (self.current_idx - 850) #-5.0
-            self.sus_b = 2.25 - 0.01 * (self.current_idx - 850)
-            
-
-        else:
-            self.SPEED_MAX = 15 #15
-            self.braking_a = -1.1 #-1.8
-            self.sus_b = 1.25 #1.25
-
-        if self.mode == 0:
-            # Const Speed
-            calculated_speed = self.const_speed()
-        elif self.mode == 1:
-            # Braking_Distance_based Speed
-            braking_speed = self.braking_distance()
-            calculated_speed = self.speed_suspension(braking_speed)
-        elif self.mode == 2:
-            # Angle_Based Speed
-            calculated_speed = self.angle_based()
-        elif self.mode == 3:
-            # Braking_distance + Road Direction based Speed
-            calculated_speed = self.direction_speed()
-
-        return calculated_speed
-
-class FGM_GNU_CONV:
-    def __init__(self):
-        #%
-        self.RACECAR_LENGTH = 0.3302
-        self.SPEED_MAX = 15.0
-        self.SPEED_MIN = 5.0
-        
-        self.MU = 0.523
-        self.GRAVITY_ACC = 9.81
-        self.PI = 3.141592
-        self.ROBOT_SCALE = 0.2032
-
-        self.LOOK = 2.5 #3.0
-        self.THRESHOLD = 4.5 #6.0
-        self.GAP_SIZE = 1
-        self.FILTER_SCALE = 1.1
-        self.GAP_THETA_GAIN = 20.0
-        self.REF_THETA_GAIN = 1.5
-
-        self.BEST_POINT_CONV_SIZE = 120#160
-#python
-        self.waypoint_real_path = 'pkg/SOCHI_for_pp.csv'
-#docker
-        # self.waypoint_real_path = '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'
-        self.waypoint_delimeter = ','
+        self.waypoint_real_path = params.wpt_path
+        self.waypoint_delimeter = params.wpt_delimeter
 
         self.scan_range = 0
         self.desired_gap = 0
@@ -269,10 +43,9 @@ class FGM_GNU_CONV:
         self.wp_num = 1
         self.waypoints = self.get_waypoint()
         self.wp_index_current = 0
-        self.nearest_point = 0
         self.current_position = [0] * 3
         self.nearest_distance = 0
-        
+
         self.max_angle = 0
         self.wp_angle = 0
         self.detect_range_s = 299
@@ -291,20 +64,16 @@ class FGM_GNU_CONV:
         self.dmin_past = 0
         self.lap = 0
 
-        self.closest_wp_dist = 0
-        self.closest_obs_dist = 0
-
-        self.scan_filtered_data = None 
-
+        self.scan_obs = []
+        self.dect_obs = []
+        self.len_obs = []
         self.obs = False
         self.ovt = False
+        self.past_point = 0
 
-        self.speed_control = SpeedController()
-
-        # init finished
-        print("WE ARE BERN'S SPEAR!")
-
-
+        self.closest_wp_dist = 0
+        self.closest_obs_dist = 0
+        self.speed_control = SC(params)
 
     def find_nearest_obs(self, obs):
         min_di = 0
@@ -343,12 +112,6 @@ class FGM_GNU_CONV:
 
         return tf_point
 
-    # def runtime(self):
-    #     runtime = GymRunner()
-    #     print(runtime.laptime)
-
-    #     return lap_time
-
     def xyt2rt(self, origin):
         rtpoint = []
 
@@ -370,17 +133,6 @@ class FGM_GNU_CONV:
             temp_waypoint.append(wps_point)
             self.wp_num += 1
         return temp_waypoint
-    
-    def calc_abs_cord(self):
-        incre = 4.71239 / 1080
-        theta = (-180+idx) * incre
-
-        x = current_x + r * np.sin(theta)
-        y = current_y + r * np.cos(theta)
-
-        abs_cord = [x,y]
-        return abs_cord
-        
 
     def find_desired_wp(self):
         wp_index_temp = self.wp_index_current
@@ -400,7 +152,6 @@ class FGM_GNU_CONV:
             elif (temp_distance > (self.nearest_distance + self.LOOK * 1.2)) or (
                     wp_index_temp == self.wp_index_current):
                 break
-            self.nearest_point = self.wp_index_current
 
         temp_distance = 0
         idx_temp = self.wp_index_current
@@ -466,7 +217,7 @@ class FGM_GNU_CONV:
         i = 0
 
         while i < self.scan_range - self.GAP_SIZE:
-            
+
             if scan[i] > self.THRESHOLD:
                 start_idx_temp = i
                 end_idx_temp = i
@@ -482,20 +233,13 @@ class FGM_GNU_CONV:
                     i += 1
                 end_idx_temp = i
 
-                gap_size = np.fabs(end_idx_temp - start_idx_temp)
-
-                if gap_size < 30:
-                    i += 1
-                    continue
-
                 gap_temp = [0] * 3
                 gap_temp[0] = start_idx_temp
                 gap_temp[1] = end_idx_temp
                 # gap_temp[2] = max_idx_temp
-                
                 self.gaps.append(gap_temp)
             i += 1
-    
+
     def for_find_gap(self, scan):
         self.for_point = (int)(self.theta_for / self.interval)
         # [0] = start_idx, [1] = end_idx
@@ -558,15 +302,65 @@ class FGM_GNU_CONV:
 
                 i += 1
             # 가장 작은 distance를 갖는 gap만 return
-            
-
             return self.gaps[gap_idx]
 
     def find_best_point(self, best_gap):
-        # print(best_gap)
         averaged_max_gap = np.convolve(self.scan_filtered[best_gap[0]:best_gap[1]], np.ones(self.BEST_POINT_CONV_SIZE),
                                        'same') / self.BEST_POINT_CONV_SIZE
         return averaged_max_gap.argmax() + best_gap[0]
+
+    def main_drive(self, max_gap):
+        self.max_angle = (max_gap - self.front_idx) * self.interval  # (goal[2] - self.front_idx) * self.interval
+        self.wp_angle = self.desired_wp_rt[1]
+
+        # range_min_values = [0]*10
+        temp_avg = 0
+        dmin = 0
+        for i in range(10):
+            dmin += self.scan_filtered[i]
+
+        dmin /= 10
+
+        i = 0
+
+        while i < self.scan_range - 7:
+            j = 0
+            while j < 10:
+                if i + j > 1079:
+                    temp_avg += 0
+                else:
+                    temp_avg += self.scan_filtered[i + j]
+                j += 1
+
+            temp_avg /= 10
+
+            if dmin > temp_avg:
+                if temp_avg == 0:
+                    temp_avg = dmin
+                dmin = temp_avg
+            temp_avg = 0
+            i += 3
+
+        if dmin == 0:
+            dmin = self.dmin_past
+
+        controlled_angle = ((self.GAP_THETA_GAIN / dmin) * self.max_angle + self.REF_THETA_GAIN * self.wp_angle) / (
+                self.GAP_THETA_GAIN / dmin + self.REF_THETA_GAIN)
+        distance = 1.0
+        # path_radius = 경로 반지름
+        path_radius = distance / (2 * np.sin(controlled_angle))
+        #
+        steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
+
+        steer = steering_angle
+        if self.ovt:
+            speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 1)
+        else:
+            speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 0)
+
+        self.dmin_past = dmin
+
+        return steer, speed
 
     def obs_dect(self):
         #for i in range(1, self.scan_range - 1):
@@ -684,104 +478,31 @@ class FGM_GNU_CONV:
             # 가장 작은 distance를 갖는 gap만 return
             return self.gaps[gap_idx]
 
-    def main_drive(self, max_gap):
-        self.max_angle = (max_gap - self.front_idx) * self.interval  # (goal[2] - self.front_idx) * self.interval
-        self.wp_angle = self.desired_wp_rt[1]
-        # #% 13, 12, 13 
-        if self.current_speed > 13:
-            self.THRESHOLD = 6 #8
-        
-        # elif self.current_speed > 10 and self.current_speed <= 13:
-        #     self.THRESHOLD = 5 #6
-            
-        else:
-            self.THRESHOLD = 4.5 #4.5
 
-        # range_min_values = [0]*10
-        temp_avg = 0
-        dmin = 0
-        for i in range(10):
-            dmin += self.scan_filtered[i]
-
-        dmin /= 10
-
-        i = 0
-
-        while i < self.scan_range - 7:
-            j = 0
-            while j < 10:
-                if i + j > 1079:
-                    temp_avg += 0
-                else:
-                    temp_avg += self.scan_filtered[i + j]
-                j += 1
-
-            temp_avg /= 10
-
-            if dmin > temp_avg:
-                if temp_avg == 0:
-                    temp_avg = dmin
-                dmin = temp_avg
-            temp_avg = 0
-            i += 3
-
-        if dmin == 0:
-            dmin = self.dmin_past
-
-        controlled_angle = ((self.GAP_THETA_GAIN / dmin) * self.max_angle + self.REF_THETA_GAIN * self.wp_angle) / (
-                self.GAP_THETA_GAIN / dmin + self.REF_THETA_GAIN)
-        #%
-        # distance_gain = self.current_speed
-        distance = 1.0 + (self.current_speed*0.001)
-        # print(distance)
-        # path_radius = 경로 반지름
-        path_radius = distance / (2 * np.sin(controlled_angle))
-        #
-        steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
-
-        steer = steering_angle
-        if self.ovt:
-            speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 1)
-        else:
-            speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, 0)
-
-        # print(steer)
-        
-        speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
-                                           self.wp_index_current)
-        self.dmin_past = dmin
-        print(self.current_speed)
-        return steer, speed
-
-    def _process_lidar(self, scan_data, odom_data):
+    def driving(self, scan_data, odom_data):
         """
-
         :param scan_data: scan data
         :param odom_data: odom data
         :return: steer, speed
         """
-
         scan_data = self.subCallback_scan(scan_data)
-        self.current_position = [odom_data['pose_x'], odom_data['pose_y'], odom_data['pose_theta']]
-        self.current_speed = odom_data['linear_vel_x']
-        #self.LOOK = 10#0.5 + (0.2*self.current_speed)
+        self.current_position = [odom_data['x'], odom_data['y'], odom_data['theta']]
+        self.current_speed = odom_data['linear_vel']
         self.find_desired_wp()
+
+        # obstacle = self.define_obstacles(self.scan_filtered)
+        # self.find_nearest_obs(obstacle)
+
         self.find_gap(scan_data)
+        #장애물감지, 추월알고리즘 사용가능한지 판단
+        self.obs_dect()
+
         self.for_find_gap(scan_data)
-        # if self.ovt==False:
-        #     self.desired_gap = self.find_best_gap(self.desired_wp_rt)
-        # else:
-        #     self.desired_gap = self.find_ovt_gap(self.desired_wp_rt)
-
-        self.desired_gap = self.find_best_gap(self.desired_wp_rt)
+        if self.ovt==False:
+            self.desired_gap = self.find_best_gap(self.desired_wp_rt)
+        else:
+            self.desired_gap = self.find_ovt_gap(self.desired_wp_rt)
         self.best_point = self.find_best_point(self.desired_gap)
-
         steer, speed = self.main_drive(self.best_point)
-        
+        self.past_point = self.best_point
         return speed, steer
-
-
-    def process_observation(self, ranges, ego_odom):
-        if ego_odom:
-            return self._process_lidar(ranges, ego_odom)
-    

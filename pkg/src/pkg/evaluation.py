@@ -13,8 +13,9 @@ current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
 
 # import your drivers here
-# from pkg.drivers.planner import *
-from pkg.drivers import FGM_GNU_CONV
+from pkg.planner.drivers import FGM_GNU_CONV
+from pkg.planner.fgm_conv import FGM_CONV
+from pkg.planner.sample import DisparityExtender, GapFollower
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'
@@ -43,6 +44,7 @@ class GymRunner(object):
                        map_ext=".png", num_agents=len(self.drivers))
 
         self.poses = None
+        self.num_agents = len(self.drivers)
         self.rendering = False
 
         self.driver_init()
@@ -59,6 +61,19 @@ class GymRunner(object):
         else:
             raise ValueError("Max 2 drivers are allowed")
 
+    def make_result(self, obs, step_reward, done, info):
+        new_str = ""
+        if self.num_agents == 1:
+            pass
+        if self.num_agents == 2:
+            for i in range(0,2):
+                new_str += f"Planner {i+1}: {self.drivers[i].__class__.__name__}\n"
+                new_str += f"\tLap Counts: {obs['lap_counts'][i]}\n"
+                new_str += f"\tLap Times: {obs['lap_times'][i]}\n"
+                new_str += f"\tCollisions: {obs['collisions'][i]}\n"
+                new_str += f"\tCheckpoint Done: {info['checkpoint_done'][i]}\n\n"
+        print(Fore.RED + new_str)
+        
     def render(self):
         if self.rendering:
             self.env.render()
@@ -100,13 +115,12 @@ class GymRunner(object):
             obs, step_reward, done, info = self.env.step(actions)
             laptime += step_reward
             self.render()
-
-        done = False if done == 1. else True
+        
+        self.make_result(obs, step_reward, done, info)
         return {'observation': obs, 'rate': 1/step_reward, 'done': done, 'checkpoint_done': info['checkpoint_done']}
 
 
 if __name__ == '__main__':
-    drivers = [FGM_GNU_CONV()]
+    drivers = [FGM_GNU_CONV(), GapFollower()]
     runner = GymRunner(RACETRACK, drivers)
     result = runner.run()
-    pprint(result)

@@ -164,7 +164,7 @@ class SpeedController:
         #%
         # lap_time: 78.55
         if self.current_idx < 200 or (self.current_idx > 350 and self.current_idx < 600):
-            # print(self.current_idx)
+            print(self.current_idx)
             self.SPEED_MAX = 20 #20
             self.braking_a = -5.0 #-5.0
             self.sus_b = 3.25 #3.25
