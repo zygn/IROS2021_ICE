@@ -6,8 +6,9 @@ import os
 import sys
 import random
 from pprint import pprint
-from colorama import Fore, Style
+from colorama import Fore, Style, init
 
+init(autoreset=True)
 # Get ./src/ folder & add it to path
 current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
@@ -37,7 +38,7 @@ class GymRunner(object):
     def __init__(self, racetrack, drivers):
         self.racetrack = racetrack
         self.drivers = drivers
-
+        self.driver_count = len(self.drivers)
         self.env = gym.make('f110_gym:f110-v0',
                        map="{}/maps/{}".format(current_dir, self.racetrack),
                        map_ext=".png", num_agents=len(self.drivers))
@@ -48,16 +49,30 @@ class GymRunner(object):
         self.driver_init()
 
     def driver_init(self):
-        driver_count = len(self.drivers)
-        if driver_count == 1:
+
+        if self.driver_count == 1:
             self.poses = np.array([[0.8007017, -0.2753365, 4.1421595]])
-        elif driver_count == 2:
+        elif self.driver_count == 2:
             self.poses = np.array([
                 [0.8007017, -0.2753365, 4.1421595],
                 [0.8162458, 1.1614572, 4.1446321],
             ])
         else:
             raise ValueError("Max 2 drivers are allowed")
+
+    def status_print(self, obs, step_reward, done, info):
+        def check(val):
+            if val == 1. or val == True: return Fore.RED + f"True" + Fore.RESET
+            elif val == 0. or val == False: return f"False"
+
+        for i in range(0, self.driver_count):
+            new_str = f"Planner {i}: {self.drivers[i].__class__.__name__}\n"
+            new_str += f"\tSpeed: {obs['linear_vels_x'][i]}\n"
+            new_str += f"\tPoses: {[obs['poses_x'][i], obs['poses_y'][i]]}\n"
+            new_str += f"\tLap Counts: {obs['lap_counts'][i]}\n"
+            new_str += f"\tCollision: {check(obs['collisions'][i])}\n"
+
+            print(new_str)
 
     def render(self):
         if self.rendering:
@@ -70,7 +85,6 @@ class GymRunner(object):
 
         obs, step_reward, done, info = self.reset()
         self.render()
-
         laptime = 0.0
         start = time.time()
 
@@ -99,14 +113,12 @@ class GymRunner(object):
             actions = np.array(actions)
             obs, step_reward, done, info = self.env.step(actions)
             laptime += step_reward
+            self.status_print(obs, step_reward, done, info)
             self.render()
 
-        done = False if done == 1. else True
-        return {'observation': obs, 'rate': 1/step_reward, 'done': done, 'checkpoint_done': info['checkpoint_done']}
 
 
 if __name__ == '__main__':
-    drivers = [FGM_GNU_CONV()]
+    drivers = [FGM_GNU_CONV(), FGM_GNU_CONV()]
     runner = GymRunner(RACETRACK, drivers)
-    result = runner.run()
-    pprint(result)
+    runner.run()
