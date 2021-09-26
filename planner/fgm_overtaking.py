@@ -364,20 +364,31 @@ class FGM:
 
     def obs_dect(self):
         #for i in range(1, self.scan_range - 1):
+        scan_f = []
+        scan_temp = []
+        for i in range(0, 269):
+            scan_temp = [0]*4
+            scan_temp[0] = self.scan_origin[int(i)*4]
+            scan_temp[1] = self.scan_origin[int(i) * 4+1]
+            scan_temp[2] = self.scan_origin[int(i) * 4+2]
+            scan_temp[3] = self.scan_origin[int(i) * 4+3]
+            scan_temp = np.array(scan_temp)
+            max= scan_temp.argmax()
+            scan_f.append(scan_temp[max])
         self.scan_obs = []
         i=1
-        d_group = 1.5
+        d_group = 2
         d_pi = 0.00628
-        while(self.scan_range - 1>i):
+        while(len(scan_f) - 1>i):
             start_idx_temp = i
             end_idx_temp = i
             max_idx_temp = i
             min_idx_temp = i
             i = i+1
-            while  math.sqrt(math.pow(self.scan_origin[i]*math.sin(math.radians(0.25)),2) + math.pow(self.scan_origin[i-1]-self.scan_origin[i]*math.cos(math.radians(0.25)),2)) < d_group + self.scan_origin[i]*d_pi and (i+1 < self.scan_range ):
-                if self.scan_origin[i] > self.scan_origin[max_idx_temp]:
+            while  math.sqrt(math.pow(scan_f[i]*math.sin(math.radians(0.25)),2) + math.pow(scan_f[i-1]-scan_f[i]*math.cos(math.radians(0.25)),2)) < d_group + scan_f[i]*d_pi and (i+1 < 269 ):
+                if scan_f[i] > scan_f[max_idx_temp]:
                     max_idx_temp = i
-                if self.scan_origin[i] < self.scan_origin[min_idx_temp]:
+                if scan_f[i] < scan_f[min_idx_temp]:
                     min_idx_temp = i
                 i = i+1
             end_idx_temp = i-1
@@ -386,14 +397,14 @@ class FGM:
             obs_temp[1] = end_idx_temp
             obs_temp[2] = max_idx_temp
             obs_temp[3] = min_idx_temp
-            obs_temp[4] = self.scan_origin[max_idx_temp]
-            obs_temp[5] = self.scan_origin[min_idx_temp]
+            obs_temp[4] = scan_f[max_idx_temp]
+            obs_temp[5] = scan_f[min_idx_temp]
             self.scan_obs.append(obs_temp)
             i+=1
 
         self.dect_obs=[]
         for i in range(len(self.scan_obs)):
-            if self.scan_obs[i][5] < 8 and self.scan_obs[i][5] > 0:
+            if self.scan_obs[i][5] < 5 and self.scan_obs[i][5] > 0:
                 obs_temp = [0]*6
                 obs_temp[0] = self.scan_obs[i][0]
                 obs_temp[1] = self.scan_obs[i][1]
@@ -406,8 +417,8 @@ class FGM:
         self.len_obs=[]
 
         for i in range(len(self.dect_obs)):
-            theta = (self.dect_obs[i][1] - self.dect_obs[i][0])*0.25
-            lengh = math.sqrt(math.pow(self.scan_origin[self.dect_obs[i][1]]*math.sin(math.radians(theta)),2) + math.pow(self.scan_origin[self.dect_obs[i][0]]-self.scan_origin[self.dect_obs[i][1]]*math.cos(math.radians(theta)),2))
+            theta = (self.dect_obs[i][1] - self.dect_obs[i][0])
+            lengh = math.sqrt(math.pow(scan_f[self.dect_obs[i][1]]*math.sin(math.radians(theta)),2) + math.pow(scan_f[self.dect_obs[i][0]]-scan_f[self.dect_obs[i][1]]*math.cos(math.radians(theta)),2))
             #print(i,lengh)
             if lengh < 1 and lengh >0:
                 obs_temp = [0]*6
@@ -419,16 +430,18 @@ class FGM:
                 obs_temp[5] = self.dect_obs[i][5]
                 self.len_obs.append(obs_temp)
 
-
-
         #self.obs = False
         for i in range(len(self.len_obs)):
-            if self.len_obs[i][0] > 720 or self.len_obs[i][1] < 360:
+            if self.len_obs[i][0] > 720/4 or self.len_obs[i][1] < 360/4:
                 # print(self.len_obs)
                 self.obs = False
                 self.ovt = False
             else:
-                print(self.obs)
+                # print(self.scan_obs)
+                # print(self.dect_obs)
+                # print(self.len_obs)
+                # print(scan_f[162],scan_f[163],scan_f[164],scan_f[165])
+                #print(self.scan_origin[475],self.scan_origin[476],self.scan_origin[477],self.scan_origin[478])
                 if self.obs== True:
                     self.ovt = True
                 self.obs = True
