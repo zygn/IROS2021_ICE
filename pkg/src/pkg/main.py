@@ -1,3 +1,4 @@
+from math import fabs
 import time
 import gym
 import numpy as np
@@ -25,7 +26,9 @@ from pkg.planner.fgm_progress import FGM_p
 # pick_list = [DisparityExtender()]
 # pick_list = [GapFollower()]
 # drivers = [FGM_p(), Wall()]
-drivers = [FGM_p(),GNU()]
+# drivers = [FGM_p(),GNU()]
+# drivers = [GNU(), FGM_p()]
+drivers = [FGM_p(flag=False), FGM_p()]
 # drivers.append(random.choice(pick_list))
 print(f"{drivers[0].__class__.__name__} vs {drivers[1].__class__.__name__}")
 

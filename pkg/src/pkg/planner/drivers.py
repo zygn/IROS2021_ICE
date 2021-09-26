@@ -15,7 +15,7 @@ import math
 class SpeedController:
     def __init__(self):
 
-        self.mode = 1
+        self.mode = 0
         self.MU = 0.523
         self.GRAVITY_ACC = 9.81
         self.PI = 3.141592
@@ -43,8 +43,8 @@ class SpeedController:
         self.wps, self.wp_num = self.load_wps()
 
     def const_speed(self):
-        speed_straight = 14
-        speed_corner = 6
+        speed_straight = 5
+        speed_corner = 4
         straight_steer = np.pi / 18
 
         if np.abs(self.steering_angle) > straight_steer:
@@ -750,7 +750,7 @@ class FGM_GNU_CONV:
         speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
                                            self.wp_index_current)
         self.dmin_past = dmin
-        print(self.current_speed)
+        # print(self.current_speed)
         return steer, speed
 
     def _process_lidar(self, scan_data, odom_data):
