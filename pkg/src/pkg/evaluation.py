@@ -21,7 +21,7 @@ from pkg.planner.fgm_conv import FGM_CONV
 from pkg.planner.fgm_overtaking import FGM
 from pkg.planner.fgm_progress import FGM_p
 from pkg.planner.wall import Wall
-from pkg.planner.sample import DisparityExtender, GapFollower
+from pkg.planner.sample import GapFollower
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'
@@ -46,12 +46,29 @@ class GymRunner(object):
         self.drivers = drivers
         self.driver_count = len(self.drivers)
         self.env = gym.make('f110_gym:f110-v0',
-                       map="{}/maps/{}".format(current_dir, self.racetrack),
-                       map_ext=".png", num_agents=len(self.drivers))
+                            map="{}/maps/{}".format(current_dir, self.racetrack),
+                            map_ext=".png", num_agents=len(self.drivers))
 
         self.poses = None
         self.rendering = False
 
+        self.status = {
+            'p1': {
+                'name': self.drivers[0].__class__.__name__,
+                'collisions': False,
+                'x': 0.0,
+                'y': 0.0,
+                'speed': 0.0,
+                'finish': False
+            },
+            'p2': {
+                'name': self.drivers[1].__class__.__name__,
+                'collisions': False,
+                'x': 0.0,
+                'y': 0.0,
+                'finish': False
+            }
+        }
         self.driver_init()
 
     def driver_init(self):
@@ -66,10 +83,23 @@ class GymRunner(object):
         else:
             raise ValueError("Max 2 drivers are allowed")
 
+    def update_status(self, obs, step_reward, done, info):
+
+        for i in range(0, self.driver_count):
+            self.status[f'p{i + 1}']['x'] = obs['poses_x'][i]
+            self.status[f'p{i + 1}']['y'] = obs['poses_y'][i]
+            self.status[f'p{i + 1}']['finish'] = info['checkpoint_done'][i]
+            if self.status[f'p{i + 1}']['collisions'] == 1.0:
+                pass
+            else:
+                self.status[f'p{i + 1}']['collisions'] = obs['collisions'][i]
+
     def status_print(self, obs, step_reward, done, info):
         def check(val):
-            if val == 1. or val == True: return Fore.RED + f"True" + Fore.RESET
-            elif val == 0. or val == False: return f"False"
+            if val == 1. or val == True:
+                return Fore.RED + f"True" + Fore.RESET
+            elif val == 0. or val == False:
+                return f"False"
 
         for i in range(0, self.driver_count):
             new_str = f"Planner {i}: {self.drivers[i].__class__.__name__}\n"
@@ -119,12 +149,23 @@ class GymRunner(object):
             actions = np.array(actions)
             obs, step_reward, done, info = self.env.step(actions)
             laptime += step_reward
-            self.status_print(obs, step_reward, done, info)
+            # self.status_print(obs, step_reward, done, info)
             self.render()
-
+            self.update_status(obs, step_reward, done, info)
+        return self.status
 
 
 if __name__ == '__main__':
-    drivers = [Wall(), GapFollower()]
-    runner = GymRunner(RACETRACK, drivers)
-    runner.run()
+    speed_params = np.linspace(6, 10, 100)
+
+    for i in range(0, 100):
+        speed_p = random.choice(speed_params)
+        # FGM_p vs Something
+        drivers = [FGM_p(), Wall(speed_p)]
+        runner1 = GymRunner(RACETRACK, drivers)
+        pprint(runner1.run())
+
+        # Something vs FGM_p
+        drivers = [Wall(speed_p), FGM_p()]
+        runner2 = GymRunner(RACETRACK, drivers)
+        pprint(runner2.run())

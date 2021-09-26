@@ -1,8 +1,11 @@
 
 class Wall:
 
-    def __init__(self):
-        self.speed = 1.0
+    def __init__(self, speed_param=None):
+        if speed_param == None:
+            self.speed = 1.0
+        else:
+            self.speed = speed_param
         self.steer = 0
 
     def process_lidar(self, scan_msg):
