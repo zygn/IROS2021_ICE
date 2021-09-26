@@ -15,7 +15,13 @@ sys.path.append(current_dir)
 
 # import your drivers here
 # from pkg.drivers.planner import *
-from pkg.drivers import FGM_GNU_CONV
+from pkg.planner.drivers import FGM_GNU_CONV as GNU1
+from pkg.planner.drivers2 import FGM_GNU_CONV as GNU2
+from pkg.planner.fgm_conv import FGM_CONV
+from pkg.planner.fgm_overtaking import FGM
+from pkg.planner.fgm_progress import FGM_p
+from pkg.planner.wall import Wall
+from pkg.planner.sample import DisparityExtender, GapFollower
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'
@@ -119,6 +125,6 @@ class GymRunner(object):
 
 
 if __name__ == '__main__':
-    drivers = [FGM_GNU_CONV(), FGM_GNU_CONV()]
+    drivers = [Wall(), GapFollower()]
     runner = GymRunner(RACETRACK, drivers)
     runner.run()
