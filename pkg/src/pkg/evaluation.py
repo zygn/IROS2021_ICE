@@ -13,15 +13,15 @@ init(autoreset=True)
 current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
 
-# import your drivers here
-# from pkg.drivers.planner import *
-from pkg.planner.drivers import FGM_GNU_CONV as GNU1
-from pkg.planner.drivers2 import FGM_GNU_CONV as GNU2
-from pkg.planner.fgm_conv import FGM_CONV
+# Qualifying Codes...
+from pkg.planner.qualifying.fgm_conv import FGM_CONV
+# On Project Codes...
 from pkg.planner.fgm_overtaking import FGM
 from pkg.planner.fgm_progress import FGM_p
-from pkg.planner.wall import Wall
-from pkg.planner.sample import GapFollower
+# Combined Planner (Driver + SCs)
+from pkg.planner.driver import FGM_GNU_CONV as GNU1
+from pkg.planner.driver_2 import FGM_GNU_CONV as GNU2
+
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
 RACETRACK = 'SOCHI'

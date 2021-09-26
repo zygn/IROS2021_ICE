@@ -1,36 +1,67 @@
 import numpy as np
 import math
-from .speed_controller import SpeedController
+from .sc.speed_controller import SpeedController as SC1
+from .sc.speed_controller_2 import SpeedController as SC2
+
 #############################
 # Maintainer: Changsoo Kang #
 #############################
 
 
 class FGM_p:
-    def __init__(self, flag=True):
+    def __init__(self, params):
+        """
+        :params (dict)
+        """
         #%
-        self.RACECAR_LENGTH = 0.3302
-        self.SPEED_MAX = 15.0
-        self.SPEED_MIN = 5.0
+        if params == None:
+            self.params = {
+                'debug': True,
+                'speed_controller': 0,
+                'racecar_length': 0.3302,
+                'robot_scale': 0.2032,
+                'max_speed': 15.0,
+                'min_speed': 5.0,
+                'pi': 3.141592,
+                'mu': 0.523,
+                'g': 9.81,
+                'look': 2.5,
+                'threshold': 4.5,
+                'gap_size': 1,
+                'filter_scale': 1.1,
+                'gap_theta_gain': 20.0,
+                'ref_theta_gain': 1.5,
+                'best_point_conv_size': 120,
+                'sus_a': 1.25,
+                'sus_b': 0.522222222222222,
+                'braking_a': -2.0,
+                'braking_b': 1.05555555555556,
+                'waypoint_delim': ',',
+                # 'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'  # for ROS ENVIRONMENT
+                'waypoint_path': 'pkg/SOCHI_for_pp.csv'  # for Python main ENVIRONMENT
+            }
+        else:
+            self.params = params
+        #%
+        self.RACECAR_LENGTH = self.params['racecar_length']
+        self.SPEED_MAX = self.params['max_speed']
+        self.SPEED_MIN = self.params['min_speed']
         
-        self.MU = 0.523
-        self.GRAVITY_ACC = 9.81
-        self.PI = 3.141592
-        self.ROBOT_SCALE = 0.2032
+        self.MU = self.params['mu']
+        self.GRAVITY_ACC = self.params['g']
+        self.PI = self.params['pi']
+        self.ROBOT_SCALE = self.params['robot_scale']
 
-        self.LOOK = 2.5 #3.0
-        self.THRESHOLD = 4.5 #6.0
-        self.GAP_SIZE = 1
-        self.FILTER_SCALE = 1.1
-        self.GAP_THETA_GAIN = 20.0
-        self.REF_THETA_GAIN = 1.5
+        self.LOOK = self.params['look'] # 2.5 | 3.0
+        self.THRESHOLD = self.params['threshold' ] # 4.5 | 6.0
+        self.GAP_SIZE = self.params['gap_size'] # 1
+        self.FILTER_SCALE = self.params['filter_scale'] # 1.1
+        self.GAP_THETA_GAIN = self.params['gap_theta_gain'] # 20.0
+        self.REF_THETA_GAIN = self.params['ref_theta_gain'] # 1.5
 
-        self.BEST_POINT_CONV_SIZE = 120#160
-#python
-        self.waypoint_real_path = 'pkg/SOCHI_for_pp.csv'
-#docker
-        # self.waypoint_real_path = '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'
-        self.waypoint_delimeter = ','
+        self.BEST_POINT_CONV_SIZE = self.params['best_point_conv_size'] # 120 | 160
+        self.waypoint_real_path = self.params['waypoint_path']
+        self.waypoint_delimeter = self.params['waypoint_delim']
 
         self.scan_range = 0
         self.desired_gap = 0
@@ -75,13 +106,11 @@ class FGM_p:
         self.obs = False
         self.ovt = False
         self.ovt_flag = False
-        self.ovt_debug = flag
-
-        self.speed_control = SpeedController()
-
+        
+        self.speed_controllers = [SC1(self.params), SC2(self.params)]
+        self.speed_control = self.speed_controllers[self.params['speed_controller']]
         # init finished
         print("WE ARE BERN'S SPEAR!")
-
 
 
     def find_nearest_obs(self, obs):
@@ -120,12 +149,6 @@ class FGM_p:
         tf_point = [tf_point_x, tf_point_y, tf_point_theta]
 
         return tf_point
-
-    # def runtime(self):
-    #     runtime = GymRunner()
-    #     print(runtime.laptime)
-
-    #     return lap_time
 
     def xyt2rt(self, origin):
         rtpoint = []
@@ -527,7 +550,7 @@ class FGM_p:
         steer = steering_angle
         if self.ovt:
             speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current, 1)
-            if self.ovt_debug: print(f"current : {self.current_speed}, speed: {speed}")
+            if self.params['debug']: print(f"current : {self.current_speed}, speed: {speed}")
         else:
             speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current, 0)
 

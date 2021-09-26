@@ -43,8 +43,8 @@ class SpeedController:
         self.wps, self.wp_num = self.load_wps()
 
     def const_speed(self):
-        speed_straight = 6.5
-        speed_corner = 5
+        speed_straight = 5
+        speed_corner = 4
         straight_steer = np.pi / 18
 
         if np.abs(self.steering_angle) > straight_steer:
@@ -231,7 +231,7 @@ class SpeedController:
         return calculated_speed
 
 class FGM_GNU_CONV:
-    def __init__(self):
+    def __init__(self, params=None):
         #%
         self.RACECAR_LENGTH = 0.3302
         self.SPEED_MAX = 15.0
@@ -634,7 +634,7 @@ class FGM_GNU_CONV:
                 self.obs = False
                 self.ovt = False
             else:
-                # print(self.obs)
+                print(self.obs)
                 if self.obs== True:
                     self.ovt = True
                 self.obs = True
@@ -689,8 +689,8 @@ class FGM_GNU_CONV:
         self.wp_angle = self.desired_wp_rt[1]
         # #% 13, 12, 13 
         if self.current_speed > 13:
-            self.THRESHOLD = 8
-            
+            self.THRESHOLD = 6 #8
+        
         # elif self.current_speed > 10 and self.current_speed <= 13:
         #     self.THRESHOLD = 5 #6
             
@@ -768,18 +768,17 @@ class FGM_GNU_CONV:
         self.find_desired_wp()
         self.find_gap(scan_data)
         self.for_find_gap(scan_data)
-        if self.ovt==False:
-            self.desired_gap = self.find_best_gap(self.desired_wp_rt)
-        else:
-            self.desired_gap = self.find_ovt_gap(self.desired_wp_rt)
+        # if self.ovt==False:
+        #     self.desired_gap = self.find_best_gap(self.desired_wp_rt)
+        # else:
+        #     self.desired_gap = self.find_ovt_gap(self.desired_wp_rt)
 
         self.desired_gap = self.find_best_gap(self.desired_wp_rt)
         self.best_point = self.find_best_point(self.desired_gap)
 
         steer, speed = self.main_drive(self.best_point)
         
-
-        return speed*0.8, steer
+        return speed, steer
 
 
     def process_observation(self, ranges, ego_odom):

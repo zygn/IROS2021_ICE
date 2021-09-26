@@ -1,34 +1,64 @@
-from .drivers import SpeedController as SC
 import numpy as np
 import math
 import time
+from .sc.speed_controller import SpeedController as SC
 
 
 class FGM:
     def __init__(self, params):
 
-        self.RACECAR_LENGTH = params.robot_length
-        self.ROBOT_LENGTH = params.robot_length
-        self.SPEED_MAX = params.max_speed
-        self.SPEED_MIN = params.min_speed
+        """
+        :params (dict)
+        """
+        #%
+        if params == None:
+            self.params = {
+                'debug': True,
+                'speed_controller': 0,
+                'racecar_length': 0.3302,
+                'robot_scale': 0.2032,
+                'max_speed': 15.0,
+                'min_speed': 5.0,
+                'pi': 3.141592,
+                'mu': 0.523,
+                'g': 9.81,
+                'look': 2.5,
+                'threshold': 4.5,
+                'gap_size': 1,
+                'filter_scale': 1.1,
+                'gap_theta_gain': 20.0,
+                'ref_theta_gain': 1.5,
+                'best_point_conv_size': 120,
+                'sus_a': 1.25,
+                'sus_b': 0.522222222222222,
+                'braking_a': -2.0,
+                'braking_b': 1.05555555555556,
+                'waypoint_delim': ',',
+                # 'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'  # for ROS ENVIRONMENT
+                'waypoint_path': 'pkg/SOCHI_for_pp.csv'  # for Python main ENVIRONMENT
+            }
+        else:
+            self.params = params
+        #%
+        self.RACECAR_LENGTH = self.params['racecar_length']
+        self.SPEED_MAX = self.params['max_speed']
+        self.SPEED_MIN = self.params['min_speed']
+        
+        self.MU = self.params['mu']
+        self.GRAVITY_ACC = self.params['g']
+        self.PI = self.params['pi']
+        self.ROBOT_SCALE = self.params['robot_scale']
 
-        self.MU = params.mu
-        self.GRAVITY_ACC = params.g
-        self.PI = params.pi
-        self.ROBOT_SCALE = params.robot_scale
-        self.mode = params.speed_controller
+        self.LOOK = self.params['look'] # 2.5 | 3.0
+        self.THRESHOLD = self.params['threshold' ] # 4.5 | 6.0
+        self.GAP_SIZE = self.params['gap_size'] # 1
+        self.FILTER_SCALE = self.params['filter_scale'] # 1.1
+        self.GAP_THETA_GAIN = self.params['gap_theta_gain'] # 20.0
+        self.REF_THETA_GAIN = self.params['ref_theta_gain'] # 1.5
 
-        self.LOOK = params.fgm['look']
-        self.THRESHOLD = params.fgm['threshold']
-        self.GAP_SIZE = params.fgm['gap_size']
-        self.FILTER_SCALE = params.fgm['filter_scale']
-        self.GAP_THETA_GAIN = params.fgm['gap_theta_gain']
-        self.REF_THETA_GAIN = params.fgm['ref_theta_gain']
-
-        self.BEST_POINT_CONV_SIZE = 80
-
-        self.waypoint_real_path = params.wpt_path
-        self.waypoint_delimeter = params.wpt_delimeter
+        self.BEST_POINT_CONV_SIZE = self.params['best_point_conv_size'] # 120 | 160
+        self.waypoint_real_path = self.params['waypoint_path']
+        self.waypoint_delimeter = self.params['waypoint_delim']
 
         self.scan_range = 0
         self.desired_gap = 0

@@ -1,4 +1,5 @@
 import numpy as np
+import math
 # from main import GymRunner
 
 # Reinforcement learning 할만한 것
@@ -14,7 +15,7 @@ import numpy as np
 class SpeedController:
     def __init__(self):
 
-        self.mode = 1
+        self.mode = 0
         self.MU = 0.523
         self.GRAVITY_ACC = 9.81
         self.PI = 3.141592
@@ -42,8 +43,8 @@ class SpeedController:
         self.wps, self.wp_num = self.load_wps()
 
     def const_speed(self):
-        speed_straight = 14
-        speed_corner = 6
+        speed_straight = 5
+        speed_corner = 4
         straight_steer = np.pi / 18
 
         if np.abs(self.steering_angle) > straight_steer:
@@ -230,7 +231,7 @@ class SpeedController:
         return calculated_speed
 
 class FGM_GNU_CONV:
-    def __init__(self):
+    def __init__(self, params=None):
         #%
         self.RACECAR_LENGTH = 0.3302
         self.SPEED_MAX = 15.0
@@ -294,6 +295,9 @@ class FGM_GNU_CONV:
         self.closest_obs_dist = 0
 
         self.scan_filtered_data = None 
+
+        self.obs = False
+        self.ovt = False
 
         self.speed_control = SpeedController()
 
@@ -564,6 +568,122 @@ class FGM_GNU_CONV:
                                        'same') / self.BEST_POINT_CONV_SIZE
         return averaged_max_gap.argmax() + best_gap[0]
 
+    def obs_dect(self):
+        #for i in range(1, self.scan_range - 1):
+        self.scan_obs = []
+        i=1
+        d_group = 1.5
+        d_pi = 0.00628
+        while(self.scan_range - 1>i):
+            start_idx_temp = i
+            end_idx_temp = i
+            max_idx_temp = i
+            min_idx_temp = i
+            i = i+1
+            while  math.sqrt(math.pow(self.scan_origin[i]*math.sin(math.radians(0.25)),2) + math.pow(self.scan_origin[i-1]-self.scan_origin[i]*math.cos(math.radians(0.25)),2)) < d_group + self.scan_origin[i]*d_pi and (i+1 < self.scan_range ):
+                if self.scan_origin[i] > self.scan_origin[max_idx_temp]:
+                    max_idx_temp = i
+                if self.scan_origin[i] < self.scan_origin[min_idx_temp]:
+                    min_idx_temp = i
+                i = i+1
+            end_idx_temp = i-1
+            obs_temp = [0]*6
+            obs_temp[0] = start_idx_temp
+            obs_temp[1] = end_idx_temp
+            obs_temp[2] = max_idx_temp
+            obs_temp[3] = min_idx_temp
+            obs_temp[4] = self.scan_origin[max_idx_temp]
+            obs_temp[5] = self.scan_origin[min_idx_temp]
+            self.scan_obs.append(obs_temp)
+            i+=1
+
+        self.dect_obs=[]
+        for i in range(len(self.scan_obs)):
+            if self.scan_obs[i][5] < 8 and self.scan_obs[i][5] > 0:
+                obs_temp = [0]*6
+                obs_temp[0] = self.scan_obs[i][0]
+                obs_temp[1] = self.scan_obs[i][1]
+                obs_temp[2] = self.scan_obs[i][2]
+                obs_temp[3] = self.scan_obs[i][3]
+                obs_temp[4] = self.scan_obs[i][4]
+                obs_temp[5] = self.scan_obs[i][5]
+                self.dect_obs.append(obs_temp)
+        #print(self.dect_obs)
+        self.len_obs=[]
+
+        for i in range(len(self.dect_obs)):
+            theta = (self.dect_obs[i][1] - self.dect_obs[i][0])*0.25
+            lengh = math.sqrt(math.pow(self.scan_origin[self.dect_obs[i][1]]*math.sin(math.radians(theta)),2) + math.pow(self.scan_origin[self.dect_obs[i][0]]-self.scan_origin[self.dect_obs[i][1]]*math.cos(math.radians(theta)),2))
+            #print(i,lengh)
+            if lengh < 1 and lengh >0:
+                obs_temp = [0]*6
+                obs_temp[0] = self.dect_obs[i][0]
+                obs_temp[1] = self.dect_obs[i][1]
+                obs_temp[2] = self.dect_obs[i][2]
+                obs_temp[3] = self.dect_obs[i][3]
+                obs_temp[4] = self.dect_obs[i][4]
+                obs_temp[5] = self.dect_obs[i][5]
+                self.len_obs.append(obs_temp)
+
+
+
+        #self.obs = False
+        for i in range(len(self.len_obs)):
+            if self.len_obs[i][0] > 720 or self.len_obs[i][1] < 360:
+                # print(self.len_obs)
+                self.obs = False
+                self.ovt = False
+            else:
+                print(self.obs)
+                if self.obs== True:
+                    self.ovt = True
+                self.obs = True
+                break
+
+    def find_ovt_gap(self):
+        num = len(self.gaps)
+
+        if num == 0:
+            return self.for_gap
+        else:
+
+            step = (int(self.past_point / self.interval))
+
+            ref_idx = self.front_idx + step
+
+            gap_idx = 0
+
+            if self.gaps[0][0] > ref_idx:
+                distance = self.gaps[0][0] - ref_idx
+            elif self.gaps[0][1] < ref_idx:
+                distance = ref_idx - self.gaps[0][1]
+            else:
+                distance = 0
+                gap_idx = 0
+
+            i = 1
+            while (i < num):
+                if self.gaps[i][0] > ref_idx:
+                    temp_distance = self.gaps[i][0] - ref_idx
+                    if temp_distance < distance:
+                        distance = temp_distance
+                        gap_idx = i
+                elif self.gaps[i][1] < ref_idx:
+                    temp_distance = ref_idx - self.gaps[i][1]
+                    if temp_distance < distance:
+                        distance = temp_distance
+                        gap_idx = i
+
+                else:
+                    temp_distance = 0
+                    distance = 0
+                    gap_idx = i
+                    break
+
+                i += 1
+            # 가장 작은 distance를 갖는 gap만 return
+            return self.gaps[gap_idx]
+
     def main_drive(self, max_gap):
         self.max_angle = (max_gap - self.front_idx) * self.interval  # (goal[2] - self.front_idx) * self.interval
         self.wp_angle = self.desired_wp_rt[1]
@@ -630,7 +750,7 @@ class FGM_GNU_CONV:
         speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
                                            self.wp_index_current)
         self.dmin_past = dmin
-        print(self.current_speed)
+        # print(self.current_speed)
         return steer, speed
 
     def _process_lidar(self, scan_data, odom_data):
@@ -648,6 +768,10 @@ class FGM_GNU_CONV:
         self.find_desired_wp()
         self.find_gap(scan_data)
         self.for_find_gap(scan_data)
+        # if self.ovt==False:
+        #     self.desired_gap = self.find_best_gap(self.desired_wp_rt)
+        # else:
+        #     self.desired_gap = self.find_ovt_gap(self.desired_wp_rt)
 
         self.desired_gap = self.find_best_gap(self.desired_wp_rt)
         self.best_point = self.find_best_point(self.desired_gap)
