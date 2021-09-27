@@ -39,7 +39,7 @@ class SpeedController:
         return braking_speed
 
     def obs_following(self, speed, steer, distance):
-        print('obs~~~')
+        # print('obs~~~')
         # braking_a: -1
         braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(distance)) - self.braking_a
         self.current_speed = speed
@@ -105,22 +105,22 @@ class SpeedController:
             self.braking_a = -10.0 #-5.0
             self.sus_b = 3.25 #3.25
 
-        elif self.current_idx < 200 and self.lap_count == 1:
-            self.SPEED_MAX = 20# - 0.12 * (self.current_idx - 100) #20
-            self.braking_a = -10.0 + 0.07 * (self.current_idx - 100) #-5.0
-            self.sus_b = 3.25 - 0.01 * (self.current_idx - 100)
-            if self.current_idx < 100:
-                # print('in')
-                self.SPEED_MAX = 20 #20
-                self.braking_a = -10.0 #-5.0
-                self.sus_b = 3.25 #3.25
+        # elif self.current_idx < 200 and self.lap_count == 1:
+        #     self.SPEED_MAX = 20# - 0.12 * (self.current_idx - 100) #20
+        #     self.braking_a = -10.0 + 0.07 * (self.current_idx - 100) #-5.0
+        #     self.sus_b = 3.25 - 0.01 * (self.current_idx - 100)
+        #     if self.current_idx < 100:
+        #         # print('in')
+        #         self.SPEED_MAX = 20 #20
+        #         self.braking_a = -10.0 #-5.0
+        #         self.sus_b = 3.25 #3.25
 
-        elif self.current_idx >= 200 and self.current_idx <= 850:  # 350
+        elif self.current_idx >= 200 and self.current_idx <= 850 and self.lap_count == 0:  # 350
             self.SPEED_MAX = 20 #20
             self.braking_a = -3.0 #-5.0
             self.sus_b = 2.25 #3.25
 
-        elif self.current_idx >= 850 and self.current_idx <= 950:  # 350
+        elif self.current_idx >= 850 and self.current_idx <= 950 and self.lap_count == 0 :  # 350
             self.SPEED_MAX = 20 - 0.12 * (self.current_idx - 850) #20
             self.braking_a = -3.0 + 0.018 * (self.current_idx - 850) #-5.0
             self.sus_b = 2.25 - 0.01 * (self.current_idx - 850)

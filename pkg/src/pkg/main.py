@@ -7,6 +7,7 @@ import os
 import sys
 import random
 import copy
+from matplotlib import pyplot as plt
 
 # Get ./src/ folder & add it to path
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -18,6 +19,7 @@ from pkg.planner.driver_2 import FGM_GNU_CONV as GNU2
 
 from pkg.planner.fgm_overtaking import FGM
 from pkg.planner.fgm_progress import FGM_p
+from pkg.planner.fgm_progress import FGM_p2
 
 
 
@@ -86,14 +88,22 @@ class GymRunner(object):
                     elif hasattr(driver, 'process_lidar'):
                         futures.append(executor.submit(driver.process_lidar, scan))
 
+            scans = []
             for future in futures:
-                speed, steer = future.result()
+                speed, steer, scan_data = future.result()
                 actions.append([steer, speed])
+                scans.append(scan_data)
+                
+            plt.plot(scans[1])
+            plt.plot(obs['scans'][1])
+            plt.grid()
+            plt.pause(0.0005)
+            plt.cla()
             actions = np.array(actions)
             # obs, step_reward, _, info = env.step(actions)
             obs, step_reward, done, info = env.step(actions)
             laptime += step_reward
-
+            # print(scans)
             env.render(mode='human_fast')
             
 
@@ -131,7 +141,7 @@ if __name__ == '__main__':
     params_2p = copy.copy(params_1p)
     params_2p['speed_controller'] = 0
 
-    drivers = [FGM_p(params_1p), FGM_p(params_2p)]
+    drivers = [FGM_p(params_1p), FGM_p2(params_2p)]
     
 
     print(f"{drivers[0].__class__.__name__} vs {drivers[1].__class__.__name__}")
