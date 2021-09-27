@@ -37,6 +37,19 @@ class SpeedController:
             braking_speed = self.SPEED_MAX
 
         return braking_speed
+    
+    def obs_following(self, speed, steer, distance):
+        # braking_a: -1
+        braking_speed = np.sqrt(2 * self.MU * self.GRAVITY_ACC * np.fabs(distance)) - self.braking_a
+        self.current_speed = speed
+        self.steering_angle = steer
+        # braking_b: 1.1
+        braking_speed *= self.braking_b
+
+        if braking_speed >= self.SPEED_MAX:
+            braking_speed = self.SPEED_MAX
+
+        return braking_speed
 
     def angle_based(self, max_speed=8.0, min_speed=4.0):
         if np.fabs(self.steering_angle) > self.PI / 8:
@@ -113,7 +126,7 @@ class SpeedController:
         #     self.sus_b = 2.25 - 0.01 * (self.current_idx - 850)
             
         else:
-            self.SPEED_MAX = 10 #15
+            self.SPEED_MAX = 12 #15
             self.braking_a = -1.1 #-1.8
             self.sus_b = 1.25 #1.25
 
@@ -123,11 +136,12 @@ class SpeedController:
             calculated_speed = self.speed_suspension(braking_speed)
         elif mode == 1:
             # Angle_Based Speed
-            # calculated_speed = self.angle_based()
-            if self.current_speed < 7:
-                calculated_speed = self.angle_based()
-                print(f"Angular Speed: {calculated_speed}")
-            else:
-                calculated_speed = self.angle_based(self.current_speed,8)
+            calculated_speed = self.angle_based(11,7)
+            # if self.current_speed < 7:
+            #     calculated_speed = self.angle_based()
+            #     print(f"Angular Speed: {calculated_speed}")
+            # else:
+            #     calculated_speed = self.angle_based(self.current_speed,8)
+            #     print(f"Angular Speed: {calculated_speed}")
 
         return calculated_speed
