@@ -539,21 +539,32 @@ class FGM_p:
         controlled_angle = ((self.GAP_THETA_GAIN / dmin) * self.max_angle + self.REF_THETA_GAIN * self.wp_angle) / (
                 self.GAP_THETA_GAIN / dmin + self.REF_THETA_GAIN)
         #%
-        # distance_gain = self.current_speed
-        distance = 1.0 + (self.current_speed*0.001)
-        # print(distance)
-        # path_radius = 경로 반지름
-        path_radius = distance / (2 * np.sin(controlled_angle))
-        #
-        steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
-
-        steer = steering_angle
+        # print(self.wp_index_current)
         if self.ovt:
-            speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current, 1)
+            if (self.wp_index_current >= 0 and self.wp_index_current <= 750) or (self.wp_index_current >= 3100 and self.wp_index_current <= 3600):
+                self.distance = (self.current_speed/7)**2
+                path_radius = self.distance / (2 * np.sin(controlled_angle))
+                steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
+            
+                speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current, 1)
+            else:
+                # self.distance = (self.current_speed/7)**2
+                self.distance = 1.0 + (self.current_speed*0.001)
+                path_radius = self.distance / (2 * np.sin(controlled_angle))
+                steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
+                #넓은 범위 braking distance 넣어야 함 self.len_obs[5]
+                speed = self.speed_control.obs_following(self.current_speed, steering_angle, self.len_obs[0][5])
+                # speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current, 0)
+
             if self.params['debug']: print(f"current : {self.current_speed}, speed: {speed}")
         else:
+            self.distance = 1.0 + (self.current_speed*0.001)
+            path_radius = self.distance / (2 * np.sin(controlled_angle))
+            steering_angle = np.arctan(self.RACECAR_LENGTH / path_radius)
+
             speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle, self.wp_index_current, 0)
 
+        steer = steering_angle
         # print(self.current_speed)
         
         # speed = self.speed_control.routine(self.scan_filtered, self.current_speed, steering_angle,
