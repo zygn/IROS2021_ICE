@@ -64,7 +64,7 @@ class GymRunner(object):
 
         obs, step_reward, done, info = env.reset(poses=poses)
         env.render()
-
+        # print(obs)
         laptime = 0.0
         start = time.time()
         while not done:
@@ -103,7 +103,7 @@ class GymRunner(object):
 if __name__ == '__main__':
     params_1p = {
                 'debug': False,
-                'speed_controller': 0,
+                'speed_controller': 1,
                 'racecar_length': 0.3302,
                 'robot_scale': 0.2032,
                 'max_speed': 15.0,
@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
 
     params_2p = copy.copy(params_1p)
-    params_2p['speed_controller'] = 1
+    params_2p['speed_controller'] = 0
 
     drivers = [FGM_p(params_1p), FGM_p(params_2p)]
     

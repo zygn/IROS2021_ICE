@@ -9,14 +9,14 @@ from .sc.speed_controller_2 import SpeedController as SC2
 
 
 class FGM_p:
-    def __init__(self, params):
+    def __init__(self, params=None):
         """
         :params (dict)
         """
         #%
         if params == None:
             self.params = {
-                'debug': True,
+                'debug': False,
                 'speed_controller': 0,
                 'racecar_length': 0.3302,
                 'robot_scale': 0.2032,
@@ -110,7 +110,7 @@ class FGM_p:
         self.speed_controllers = [SC1(self.params), SC2(self.params)]
         self.speed_control = self.speed_controllers[self.params['speed_controller']]
         # init finished
-        print("WE ARE BERN'S SPEAR!")
+        if self.params['debug']: print("WE ARE BERN'S SPEAR!")
 
 
     def find_nearest_obs(self, obs):

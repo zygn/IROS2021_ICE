@@ -40,7 +40,7 @@ class SpeedController:
 
     def angle_based(self, max_speed=8.0, min_speed=4.0):
         if np.fabs(self.steering_angle) > self.PI / 8:
-            angular_speed = min_speed
+            angular_speed = self.speed_suspension(self.braking_distance())
         else:
             angular_speed = float(-(3 / self.PI) * (max_speed - min_speed) * np.fabs(self.steering_angle) + max_speed)
 
@@ -126,9 +126,10 @@ class SpeedController:
             # calculated_speed = self.angle_based()
             # if self.current_speed < 7:
             #     calculated_speed = self.angle_based()
-            #     print(f"Angular Speed: {calculated_speed}")
+            #     # print(f"Angular Speed: {calculated_speed}")
             # else:
-            calculated_speed = self.angle_based(12,7)
-
+            #     calculated_speed = self.angle_based(11,7)
+            calculated_speed = self.combined_speed()
+        print(calculated_speed)
         # 직선 구간에만 angle_based 사용. 코너 구간에선 장애물 탐지시 넓은 범위를 탐지하는 braking_distance 사용
         return calculated_speed

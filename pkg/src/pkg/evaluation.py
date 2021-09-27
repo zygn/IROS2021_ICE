@@ -7,6 +7,8 @@ import sys
 import random
 from pprint import pprint
 from colorama import Fore, Style, init
+import csv
+import copy
 
 init(autoreset=True)
 # Get ./src/ folder & add it to path
@@ -21,6 +23,9 @@ from pkg.planner.fgm_progress import FGM_p
 # Combined Planner (Driver + SCs)
 from pkg.planner.driver import FGM_GNU_CONV as GNU1
 from pkg.planner.driver_2 import FGM_GNU_CONV as GNU2
+# Test Codes...
+from pkg.planner.test.wall import Wall
+from pkg.planner.test.example import GapFollower
 
 
 # choose your racetrack here (SOCHI, SOCHI_OBS)
@@ -59,6 +64,8 @@ class GymRunner(object):
                 'x': 0.0,
                 'y': 0.0,
                 'speed': 0.0,
+                'lap_counts': 0.0,
+                'lap_times': 0.0,
                 'finish': False
             },
             'p2': {
@@ -66,6 +73,9 @@ class GymRunner(object):
                 'collisions': False,
                 'x': 0.0,
                 'y': 0.0,
+                'speed': 0.0,
+                'lap_counts': 0.0,
+                'lap_times': 0.0,
                 'finish': False
             }
         }
@@ -93,29 +103,32 @@ class GymRunner(object):
                 pass
             else:
                 self.status[f'p{i + 1}']['collisions'] = obs['collisions'][i]
+            self.status[f'p{i + 1}']['lap_times'] = obs['lap_times'][i]
+            self.status[f'p{i + 1}']['lap_counts'] = obs['lap_counts'][i]
 
-    def status_print(self, obs, step_reward, done, info):
-        def check(val):
-            if val == 1. or val == True:
-                return Fore.RED + f"True" + Fore.RESET
-            elif val == 0. or val == False:
-                return f"False"
-
-        for i in range(0, self.driver_count):
-            new_str = f"Planner {i}: {self.drivers[i].__class__.__name__}\n"
-            new_str += f"\tSpeed: {obs['linear_vels_x'][i]}\n"
-            new_str += f"\tPoses: {[obs['poses_x'][i], obs['poses_y'][i]]}\n"
-            new_str += f"\tLap Counts: {obs['lap_counts'][i]}\n"
-            new_str += f"\tCollision: {check(obs['collisions'][i])}\n"
-
-            print(new_str)
+    def finish_check(self, obs, done):
+        if obs['lap_counts'][0] >= 2 and obs['lap_counts'][1] >= 2:
+            return True
+        elif np.max(obs['lap_times']) >= 300.0:
+            return True
+        elif obs['lap_counts'][0] >= 2 or obs['lap_counts'][1] >= 2:
+            if abs(obs['lap_counts'][0] - obs['lap_counts'][1]) > 2:
+                return True 
+            else:
+                return False
+        else:
+            return False
 
     def render(self):
         if self.rendering:
-            self.env.render()
+            self.env.render('human_fast')
 
     def reset(self):
         return self.env.reset(poses=self.poses)
+
+    def change_drivers(self):
+        pop_ = self.drivers.pop()
+        self.drivers.append(pop_)
 
     def run(self):
 
@@ -123,7 +136,7 @@ class GymRunner(object):
         self.render()
         laptime = 0.0
         start = time.time()
-
+ 
         while not done:
             actions = []
             futures = []
@@ -152,20 +165,72 @@ class GymRunner(object):
             # self.status_print(obs, step_reward, done, info)
             self.render()
             self.update_status(obs, step_reward, done, info)
+            done = self.finish_check(obs, done)
+            pprint([obs, info])
+
         return self.status
 
 
 if __name__ == '__main__':
-    speed_params = np.linspace(6, 10, 100)
+
+    file_name = f'log/eval_{time.strftime("%Y-%m-%d-%H-%M-%S")}.csv'
+    print(f"Result will logged at {file_name}")
+    csvfile = open(file_name, 'w', newline='')
+    wdr = csv.writer(csvfile)
+    wdr.writerow(['1p', 'laptime', 'max_speed', 'finish', 'collisions', 'x', 'y', '2p', 'laptime', 'max_speed', 'finish', 'collisions', 'x', 'y'])
+
+    speed_params = np.linspace(10, 12, 100)
+    params = {
+                'debug': False,
+                'speed_controller': 0,
+                'racecar_length': 0.3302,
+                'robot_scale': 0.2032,
+                'max_speed': 15.0,
+                'min_speed': 5.0,
+                'pi': 3.141592,
+                'mu': 0.523,
+                'g': 9.81,
+                'look': 2.5,
+                'threshold': 4.5,
+                'gap_size': 1,
+                'filter_scale': 1.1,
+                'gap_theta_gain': 20.0,
+                'ref_theta_gain': 1.5,
+                'best_point_conv_size': 120,
+                'sus_a': 1.25,
+                'sus_b': 0.522222222222222,
+                'braking_a': -2.0,
+                'braking_b': 1.05555555555556,
+                'waypoint_delim': ',',
+                # 'waypoint_path': '/catkin_ws/src/pkg/src/pkg/SOCHI_for_pp.csv'  # for ROS ENVIRONMENT
+                'waypoint_path': 'pkg/SOCHI_for_pp.csv'  # for Python main ENVIRONMENT
+            }
+    params_2 = copy.copy(params)
 
     for i in range(0, 100):
-        speed_p = random.choice(speed_params)
-        # FGM_p vs Something
-        drivers = [FGM_p(), Wall(speed_p)]
-        runner1 = GymRunner(RACETRACK, drivers)
-        pprint(runner1.run())
+        default_speed = params['max_speed']
+        params_2['max_speed'] = random.choice(speed_params)
 
-        # Something vs FGM_p
-        drivers = [Wall(speed_p), FGM_p()]
+        # drivers = [FGM_p(), Wall(params_2['max_speed'])]
+        drivers = [FGM_p(), GapFollower(params_2['max_speed'])]
+        print(f"Processing {i}-0 : {drivers[0].__class__.__name__} vs {drivers[1].__class__.__name__}(MAX_SPEED: {params_2['max_speed']})")
+
+        runner1 = GymRunner(RACETRACK, drivers)
+        val = runner1.run()
+
+        csv_val = [drivers[0].__class__.__name__, val['p1']['lap_times'], default_speed, val['p1']['finish'], val['p1']['collisions'], val['p1']['x'], val['p1']['y'], drivers[1].__class__.__name__, val['p2']['lap_times'], params_2['max_speed'], val['p2']['finish'], val['p2']['collisions'], val['p2']['x'], val['p2']['y']]
+        wdr.writerow(csv_val)
+        csv_val = []
+
+        # drivers = [Wall(params_2['max_speed']), FGM_p()]
+        drivers = [GapFollower(params_2['max_speed']), FGM_p()]
+        print(f"Processing {i}-1 : {drivers[0].__class__.__name__}(MAX_SPEED: {params_2['max_speed']}) vs {drivers[1].__class__.__name__}")
+        
         runner2 = GymRunner(RACETRACK, drivers)
-        pprint(runner2.run())
+        val = runner2.run()
+
+        csv_val = [drivers[0].__class__.__name__, val['p1']['lap_times'], params_2['max_speed'], val['p1']['finish'], val['p1']['collisions'], val['p1']['x'], val['p1']['y'], drivers[1].__class__.__name__, val['p2']['lap_times'], default_speed, val['p2']['finish'], val['p2']['collisions'], val['p2']['x'], val['p2']['y']]
+        wdr.writerow(csv_val)
+        csv_val = []
+
+    csvfile.close()

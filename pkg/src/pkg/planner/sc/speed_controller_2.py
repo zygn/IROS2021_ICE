@@ -113,7 +113,7 @@ class SpeedController:
         #     self.sus_b = 2.25 - 0.01 * (self.current_idx - 850)
             
         else:
-            self.SPEED_MAX = 12 #15
+            self.SPEED_MAX = 10 #15
             self.braking_a = -1.1 #-1.8
             self.sus_b = 1.25 #1.25
 
